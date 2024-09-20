@@ -14,11 +14,12 @@ CropperT = TypeVar("CropperT", bound=Cropper)
 class CropperConfig(BaseModel, Generic[CropperT], ABC):
     type: str
 
-    layers: Sequence[LayerConfigs] | Sequence[Layer] = Field(default_factory=list)
+    preprocessing_layers: Sequence[LayerConfigs] | Sequence[Layer] = Field(default_factory=list)
 
-    def initialize_layers(self) -> Sequence[Layer]:
+    def initialize_preprocessing_layers(self) -> Sequence[Layer]:
         return [
-            layer.initialize() if isinstance(layer, LayerConfig) else layer for layer in self.layers
+            layer.initialize() if isinstance(layer, LayerConfig) else layer
+            for layer in self.preprocessing_layers
         ]
 
     @abstractmethod

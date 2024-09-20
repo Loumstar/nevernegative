@@ -2,9 +2,11 @@ from typing import Annotated, TypeAlias
 
 from pydantic import Field
 
-from nevernegative.color.config.base import ColorBalancerConfig
-from nevernegative.crop.config.base import CropperConfig
-from nevernegative.dewarp.config.base import DewarperConfig
+from nevernegative.color.config.histogram_scaling import HistogramScalingColorBalancerConfig
+from nevernegative.color.config.resnet import ResNetColorBalancerConfig
+from nevernegative.crop.config.hough import HoughCropConfig
+from nevernegative.dewarp.config.checkerboard import CheckerboardDewarperConfig
+from nevernegative.dewarp.config.hough import HoughTransformDewarperConfig
 from nevernegative.layers.config.blur import BlurConfig
 from nevernegative.layers.config.edge import EdgeDetectConfig
 from nevernegative.layers.config.grey import GreyConfig
@@ -16,6 +18,17 @@ LayerConfigs: TypeAlias = Annotated[
     Field(discriminator="type"),
 ]
 
-DewarperConfigs: TypeAlias = Annotated[DewarperConfig, Field(discriminator="type")]
-CropperConfigs: TypeAlias = Annotated[CropperConfig, Field(discriminator="type")]
-ColorBalancerConfigs: TypeAlias = Annotated[ColorBalancerConfig, Field(discriminator="type")]
+DewarperConfigs: TypeAlias = Annotated[
+    HoughTransformDewarperConfig | CheckerboardDewarperConfig,
+    Field(discriminator="type"),
+]
+
+CropperConfigs: TypeAlias = Annotated[
+    HoughCropConfig,
+    Field(discriminator="type"),
+]
+
+ColorBalancerConfigs: TypeAlias = Annotated[
+    HistogramScalingColorBalancerConfig | ResNetColorBalancerConfig,
+    Field(discriminator="type"),
+]

@@ -8,7 +8,7 @@ from nevernegative.layers.config.grey import GreyConfig
 from nevernegative.layers.config.threshold import ThresholdConfig
 
 
-class HoughTransformConfig(BaseModel):
+class HoughTransformParameters(BaseModel):
     start_angle: float = np.deg2rad(-45)
     end_angle: float = np.deg2rad(135)
     step: int = 360
@@ -19,19 +19,20 @@ class HoughCropConfig(CropperConfig[HoughCrop]):
     peak_min_distance: int = 30
     snap_to_edge_map: bool = True
 
-    grey: GreyConfig
-    edge_detector: EdgeDetectConfig
+    grey_converter: GreyConfig
     thresholder: ThresholdConfig
+    edge_detector: EdgeDetectConfig
 
-    hough_transform: HoughTransformConfig
+    hough_transform_parameters: HoughTransformParameters
 
     def initialize(self) -> HoughCrop:
         return HoughCrop(
             peak_ratio=self.peak_ratio,
             min_distance=self.peak_min_distance,
             snap_to_edge_map=self.snap_to_edge_map,
-            edge_detector=self.edge_detector,
+            grey_converter=self.grey_converter,
             thresholder=self.thresholder,
-            hough_transform=self.hough_transform,
-            layers=self.initialize_layers(),
+            edge_detector=self.edge_detector,
+            hough_transform_parameters=self.hough_transform_parameters,
+            preprocessing_layers=self.initialize_preprocessing_layers(),
         )

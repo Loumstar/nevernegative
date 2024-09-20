@@ -5,12 +5,12 @@ from nevernegative.layers.base import Layer
 from nevernegative.typing.image import Image, ScalarTypeT
 
 
-class ColorBalancer(ABC):
+class Dewarper(ABC):
     def __init__(self, preprocessing_layers: Sequence[Layer] | None = None) -> None:
         self.preprocessing_layers = preprocessing_layers or []
 
     def __call__(self, image: Image[ScalarTypeT]) -> Image[ScalarTypeT]:
-        """Crop an image, returning only the portion that contains the negative.
+        """Remove warping from an image.
 
         Args:
             image (RGBImage[DTypeT]): _description_
@@ -25,7 +25,7 @@ class ColorBalancer(ABC):
 
     @abstractmethod
     def compute(self, image: Image[ScalarTypeT]) -> Image[ScalarTypeT]:
-        """Crop an image, returning only the portion that contains the negative.
+        """Remove warping from an image.
 
         Args:
             image (RGBImage[DTypeT]): _description_

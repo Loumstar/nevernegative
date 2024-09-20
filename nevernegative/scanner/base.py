@@ -2,6 +2,9 @@ from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Generic, Literal, TypeVar, overload
 
+import rawpy
+import skimage as ski
+
 from nevernegative.scanner.config.base import ScannerConfig
 from nevernegative.typing.image import Image, ScalarTypeT
 
@@ -11,6 +14,15 @@ ScannerConfigT = TypeVar("ScannerConfigT", bound=ScannerConfig)
 class Scanner(ABC, Generic[ScannerConfigT]):
     def __init__(self, config: ScannerConfigT) -> None:
         self.config = config
+
+    def from_file(self, source: str | Path, *, is_raw: bool = False) -> Image:
+        if is_raw:
+            with rawpy.imread(source) as raw:
+                image = raw.postprocess().copy()
+        else:
+            image = ski.io.imread(source)
+
+        return image
 
     @overload
     @abstractmethod

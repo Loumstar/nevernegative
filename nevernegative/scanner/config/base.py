@@ -1,11 +1,17 @@
-from pydantic import BaseModel
+from typing import Sequence
 
-from nevernegative.typing.config import ColorBalancerConfig, CropperConfig, DewarperConfig
+from pydantic import BaseModel, Field
+
+from nevernegative.callbacks.base import Callback
+from nevernegative.color.base import ColorBalancer
+from nevernegative.crop.base import Cropper
+from nevernegative.dewarp.base import Dewarper
+from nevernegative.typing.config import ColorBalancerConfigs, CropperConfigs, DewarperConfigs
 
 
 class ScannerConfig(BaseModel):
-    dewarping: DewarperConfig
-    cropping: CropperConfig
-    color_balancing: ColorBalancerConfig
+    dewarping: DewarperConfigs | Dewarper | None = None
+    cropping: CropperConfigs | Cropper | None = None
+    color_balancing: ColorBalancerConfigs | ColorBalancer | None = None
 
-    callbacks: list
+    callbacks: Sequence[Callback] = Field(default_factory=list)
