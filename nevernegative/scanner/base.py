@@ -4,8 +4,8 @@ from typing import Generic, Literal, TypeVar, overload
 
 import rawpy
 import skimage as ski
+from numpy.typing import NDArray
 
-from nevernegative.image.image import Image
 from nevernegative.scanner.config.base import ScannerConfig
 
 ScannerConfigT = TypeVar("ScannerConfigT", bound=ScannerConfig)
@@ -15,7 +15,7 @@ class Scanner(ABC, Generic[ScannerConfigT]):
     def __init__(self, config: ScannerConfigT) -> None:
         self.config = config
 
-    def from_file(self, source: str | Path, *, is_raw: bool = False) -> Image:
+    def from_file(self, source: str | Path, *, is_raw: bool = False) -> NDArray:
         if isinstance(source, str):
             source = Path(source)
 
@@ -25,7 +25,7 @@ class Scanner(ABC, Generic[ScannerConfigT]):
         else:
             image = ski.io.imread(source)
 
-        return Image(source=source, block="raw", raw=image)
+        return image
 
     @overload
     @abstractmethod
@@ -36,8 +36,7 @@ class Scanner(ABC, Generic[ScannerConfigT]):
         *,
         return_array: Literal[True],
         raw: bool = False,
-        target_layer: str | int | None = None,
-    ) -> Image: ...
+    ) -> NDArray: ...
 
     @overload
     @abstractmethod
@@ -48,7 +47,6 @@ class Scanner(ABC, Generic[ScannerConfigT]):
         *,
         return_array: Literal[False],
         raw: bool = False,
-        target_layer: str | int | None = None,
     ) -> None: ...
 
     @abstractmethod
@@ -59,8 +57,7 @@ class Scanner(ABC, Generic[ScannerConfigT]):
         *,
         return_array: bool = False,
         raw: bool = False,
-        target_layer: str | int | None = None,
-    ) -> Image | None:
+    ) -> NDArray | None:
         """Transform the image from a file.
 
         Args:
@@ -71,7 +68,7 @@ class Scanner(ABC, Generic[ScannerConfigT]):
             target_layer (str | int | None, optional): _description_. Defaults to None.
 
         Returns:
-            Image[Any] | None: _description_
+            NDArray[Any] | None: _description_
         """
 
     @abstractmethod
@@ -79,8 +76,6 @@ class Scanner(ABC, Generic[ScannerConfigT]):
         self,
         source: str,
         destination: str,
-        *,
-        target_layer: str | int | None = None,
     ) -> None:
         """Transform images in a directory.
 
@@ -93,15 +88,13 @@ class Scanner(ABC, Generic[ScannerConfigT]):
     @abstractmethod
     def array(
         self,
-        source: Image,
-        *,
-        target_layer: str | int | None = None,
-    ) -> Image:
+        source: NDArray,
+    ) -> NDArray:
         """Transform the image from a numpy array.
 
         Args:
-            source (Image): _description_
+            source (NDArray): _description_
 
         Returns:
-            Image: _description_
+            NDArray: _description_
         """
