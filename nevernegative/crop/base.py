@@ -1,15 +1,15 @@
 from abc import ABC, abstractmethod
 from typing import Sequence
 
+from nevernegative.image.image import Image
 from nevernegative.layers.base import Layer
-from nevernegative.typing.image import Image, ScalarTypeT
 
 
 class Cropper(ABC):
     def __init__(self, layers: Sequence[Layer] | None = None) -> None:
         self.layers = layers or []
 
-    def __call__(self, image: Image[ScalarTypeT]) -> Image[ScalarTypeT]:
+    def __call__(self, image: Image) -> Image:
         """Crop an image, returning only the portion that contains the negative.
 
         Args:
@@ -24,7 +24,7 @@ class Cropper(ABC):
         return self.compute(image)
 
     @abstractmethod
-    def compute(self, image: Image[ScalarTypeT]) -> Image[ScalarTypeT]:
+    def compute(self, image: Image) -> Image:
         """Crop an image, returning only the portion that contains the negative.
 
         Args:

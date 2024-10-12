@@ -2,12 +2,13 @@ import itertools
 from typing import Sequence
 
 import numpy as np
-import numpy.typing as npt
 import skimage as ski
+from numpy.typing import NDArray
 
 from nevernegative.crop.base import Cropper
 from nevernegative.crop.config.hough import HoughTransformParameters
 from nevernegative.crop.utils.line import Line, line_intersection
+from nevernegative.image.image import Image
 from nevernegative.layers.base import Layer
 from nevernegative.layers.config.base import LayerConfig
 from nevernegative.layers.config.edge import EdgeDetectConfig
@@ -16,7 +17,6 @@ from nevernegative.layers.config.threshold import ThresholdConfig
 from nevernegative.layers.edge import EdgeDetect
 from nevernegative.layers.grey import Grey
 from nevernegative.layers.threshold import Threshold
-from nevernegative.typing.image import EdgeMap, Image, ScalarTypeT
 from nevernegative.utils.image import approximate_image_scaling, get_image_corners
 
 
@@ -56,7 +56,7 @@ class HoughCrop(Cropper):
 
     def find_bounding_lines(
         self,
-        image: EdgeMap,
+        image: NDArray[np.bool],
     ) -> tuple[tuple[Line, Line], tuple[Line, Line]]:
         hspace, angles, distances = ski.transform.hough_line(
             image,
@@ -101,7 +101,7 @@ class HoughCrop(Cropper):
 
         return (left, right), (top, bottom)
 
-    def find_corners(self, image: EdgeMap) -> tuple[npt.NDArray[np.float64], tuple[int, int]]:
+    def find_corners(self, image: NDArray[np.bool]) -> tuple[NDArray[np.float64], tuple[int, int]]:
         verticals, horizontals = self.find_bounding_lines(image)
 
         # Order is guaranteed to be:
@@ -126,26 +126,26 @@ class HoughCrop(Cropper):
 
     @staticmethod
     def _snap_corners_to_edge_map(
-        corners: npt.NDArray[np.float64], edge_map: EdgeMap
-    ) -> npt.NDArray[np.float64]:
-        edge_pixels = np.flip(np.argwhere(edge_map > 0), axis=1)
+        corners: NDArray[np.float64], edge_map: NDArray[np.bool]
+    ) -> NDArray[np.float64]:
+        edge_pixels = np.flip(np.argwhere(edge_map), axis=1)
         vectors = np.expand_dims(corners, axis=1) - edge_pixels
         distances = np.linalg.vector_norm(vectors, axis=2)
 
         return edge_pixels[np.argmin(distances, axis=1)].astype(np.float64)
 
-    def compute(self, image: Image[ScalarTypeT]) -> Image[ScalarTypeT]:
+    def compute(self, image: Image) -> Image:
         grey = self.grey_converter(image)
         threshold = self.thresholder(grey)
         edge_map = self.edge_detector(threshold)
 
-        crop_corners, crop_shape = self.find_corners(edge_map)
-        crop_corners *= approximate_image_scaling(edge_map.shape, image.shape)
+        crop_corners, crop_shape = self.find_corners(edge_map.raw)
+        crop_corners *= approximate_image_scaling(edge_map.raw.shape, image.raw.shape)
 
         transform = ski.transform.ProjectiveTransform()
         is_success = transform.estimate(
             src=crop_corners,
-            dst=get_image_corners(image).astype(np.float64),
+            dst=get_image_corners(image.raw).astype(np.float64),
         )
 
         if not is_success:

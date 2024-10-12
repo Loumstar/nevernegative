@@ -1,8 +1,6 @@
 import numpy as np
 import numpy.typing as npt
 
-from nevernegative.typing.image import Image
-
 
 def approximate_image_scaling(
     input_shape: tuple[int, ...],
@@ -14,7 +12,7 @@ def approximate_image_scaling(
     return (output_height / input_height, output_width / input_width)
 
 
-def get_image_corners(image: Image) -> npt.NDArray[np.intp]:
+def get_image_corners(image: npt.NDArray) -> npt.NDArray[np.intp]:
     return np.array(
         [
             (0, 0),

@@ -1,7 +1,7 @@
 import skimage as ski
+from numpy.typing import NDArray
 
 from nevernegative.layers.base import Layer
-from nevernegative.typing.image import Image, ScalarTypeT
 
 
 class Resize(Layer):
@@ -36,7 +36,7 @@ class Resize(Layer):
 
         return (int(ratio * height), int(ratio * width))
 
-    def __call__(self, image: Image[ScalarTypeT]) -> Image[ScalarTypeT]:
+    def compute(self, image: NDArray) -> NDArray:
         return ski.transform.resize(  # type: ignore
             image,
             self._calculate_new_shape(image.shape),

@@ -1,11 +1,11 @@
 import skimage as ski
+from numpy.typing import NDArray
 
 from nevernegative.layers.base import Layer
-from nevernegative.typing.image import Image, ScalarTypeT
 
 
 class Grey(Layer):
-    def __call__(self, image: Image[ScalarTypeT]) -> Image[ScalarTypeT]:
+    def compute(self, image: NDArray) -> NDArray:
         if image.ndim == 2:
             return image
 

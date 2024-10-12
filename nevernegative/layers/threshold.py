@@ -1,9 +1,9 @@
 import skimage as ski
+from numpy.typing import NDArray
 
 from nevernegative.layers.base import Layer
-from nevernegative.typing.image import Image, ScalarTypeT, ThresholdImage
 
 
 class Threshold(Layer):
-    def __call__(self, image: Image[ScalarTypeT]) -> ThresholdImage:
+    def compute(self, image: NDArray) -> NDArray:
         return image > ski.filters.threshold_mean(image)

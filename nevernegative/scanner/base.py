@@ -5,8 +5,8 @@ from typing import Generic, Literal, TypeVar, overload
 import rawpy
 import skimage as ski
 
+from nevernegative.image.image import Image
 from nevernegative.scanner.config.base import ScannerConfig
-from nevernegative.typing.image import Image, ScalarTypeT
 
 ScannerConfigT = TypeVar("ScannerConfigT", bound=ScannerConfig)
 
@@ -16,13 +16,16 @@ class Scanner(ABC, Generic[ScannerConfigT]):
         self.config = config
 
     def from_file(self, source: str | Path, *, is_raw: bool = False) -> Image:
+        if isinstance(source, str):
+            source = Path(source)
+
         if is_raw:
             with rawpy.imread(source) as raw:
                 image = raw.postprocess().copy()
         else:
             image = ski.io.imread(source)
 
-        return image
+        return Image(source=source, block="raw", raw=image)
 
     @overload
     @abstractmethod
@@ -34,7 +37,7 @@ class Scanner(ABC, Generic[ScannerConfigT]):
         return_array: Literal[True],
         raw: bool = False,
         target_layer: str | int | None = None,
-    ) -> Image[ScalarTypeT]: ...
+    ) -> Image: ...
 
     @overload
     @abstractmethod
@@ -57,7 +60,7 @@ class Scanner(ABC, Generic[ScannerConfigT]):
         return_array: bool = False,
         raw: bool = False,
         target_layer: str | int | None = None,
-    ) -> Image[ScalarTypeT] | None:
+    ) -> Image | None:
         """Transform the image from a file.
 
         Args:
@@ -68,7 +71,7 @@ class Scanner(ABC, Generic[ScannerConfigT]):
             target_layer (str | int | None, optional): _description_. Defaults to None.
 
         Returns:
-            Image[ScalarTypeT] | None: _description_
+            Image[Any] | None: _description_
         """
 
     @abstractmethod
@@ -90,15 +93,15 @@ class Scanner(ABC, Generic[ScannerConfigT]):
     @abstractmethod
     def array(
         self,
-        source: Image[ScalarTypeT],
+        source: Image,
         *,
         target_layer: str | int | None = None,
-    ) -> Image[ScalarTypeT]:
+    ) -> Image:
         """Transform the image from a numpy array.
 
         Args:
-            source (Image[ScalarTypeT]): _description_
+            source (Image): _description_
 
         Returns:
-            Image[ScalarTypeT]: _description_
+            Image: _description_
         """
