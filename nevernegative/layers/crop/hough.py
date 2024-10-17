@@ -5,6 +5,7 @@ import skimage as ski
 from numpy.typing import NDArray
 
 from nevernegative.layers.common.config.edge import EdgeDetectConfig
+from nevernegative.layers.common.config.grey import GreyConfig
 from nevernegative.layers.common.config.threshold import ThresholdConfig
 from nevernegative.layers.common.edge import EdgeDetect
 from nevernegative.layers.common.grey import Grey
@@ -22,7 +23,7 @@ class HoughCrop(Cropper):
         peak_ratio: float,
         min_distance: int,
         snap_to_edge_map: bool,
-        grey_converter: Grey,
+        grey_converter: GreyConfig | Grey,
         thresholder: ThresholdConfig | Threshold,
         edge_detector: EdgeDetectConfig | EdgeDetect,
         *,
