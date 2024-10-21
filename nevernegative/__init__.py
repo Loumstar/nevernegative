@@ -1,3 +1,3 @@
-from nevernegative.scanner import ScannerConfig, SimpleScanner
+from nevernegative.scanner import SimpleScanner
 
-__all__ = ["SimpleScanner", "ScannerConfig"]
+__all__ = ["SimpleScanner"]

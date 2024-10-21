@@ -12,6 +12,8 @@ class Blur(Layer):
         sigma: int | tuple[int, int],
         mode: Literal["reflect", "nearest", "mirror", "wrap"] = "nearest",
     ) -> None:
+        super().__init__()
+
         self.sigma = (sigma, sigma) if isinstance(sigma, int) else sigma
         self.mode = mode
 

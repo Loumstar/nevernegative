@@ -1,0 +1,8 @@
+__pycache__
+.DS_Store
+.vscode
+.mypy_cache
+.venv
+
+images
+results

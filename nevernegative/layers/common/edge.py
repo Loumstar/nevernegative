@@ -5,7 +5,15 @@ from nevernegative.layers.base import Layer
 
 
 class EdgeDetect(Layer):
-    def __init__(self, sigma: float, low_threshold: float, high_threshold: float) -> None:
+    def __init__(
+        self,
+        *,
+        sigma: float = 1,
+        low_threshold: float | None = None,
+        high_threshold: float | None = None,
+    ) -> None:
+        super().__init__()
+
         self.sigma = sigma
         self.low_threshold = low_threshold
         self.high_threshold = high_threshold

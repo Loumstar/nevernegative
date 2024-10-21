@@ -12,6 +12,8 @@ class Resize(Layer):
         ratio: float | None = None,
         anti_aliasing: bool = True,
     ) -> None:
+        super().__init__()
+
         self.height = height
         self.width = width
         self.ratio = ratio

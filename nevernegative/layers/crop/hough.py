@@ -1,150 +1,159 @@
-import itertools
+from pathlib import Path
+from typing import Literal, Sequence
 
 import numpy as np
 import skimage as ski
+from matplotlib import pyplot as plt
 from numpy.typing import NDArray
 
-from nevernegative.layers.common.config.edge import EdgeDetectConfig
-from nevernegative.layers.common.config.grey import GreyConfig
-from nevernegative.layers.common.config.threshold import ThresholdConfig
+from nevernegative.layers.base import Layer
 from nevernegative.layers.common.edge import EdgeDetect
 from nevernegative.layers.common.grey import Grey
 from nevernegative.layers.common.threshold import Threshold
-from nevernegative.layers.config import LayerConfig
 from nevernegative.layers.crop.base import Cropper
-from nevernegative.layers.crop.config.hough import HoughTransformParameters
-from nevernegative.layers.crop.utils.line import Line, line_intersection
-from nevernegative.utils.image import approximate_image_scaling, get_image_corners
+from nevernegative.layers.utils.corner_detection.hough import HoughTransform
+from nevernegative.layers.utils.line import Line
 
 
 class HoughCrop(Cropper):
     def __init__(
         self,
-        peak_ratio: float,
-        min_distance: int,
-        snap_to_edge_map: bool,
-        grey_converter: GreyConfig | Grey,
-        thresholder: ThresholdConfig | Threshold,
-        edge_detector: EdgeDetectConfig | EdgeDetect,
         *,
-        hough_transform_parameters: HoughTransformParameters = HoughTransformParameters(),
+        peak_ratio: float = 0.2,
+        min_distance: int = 30,
+        snap_to_edge_map: bool = True,
+        preprocessing_layers: Sequence[Layer] | None = None,
+        edge_sigma: float = 1.0,
+        edge_low_threshold: float | None = None,
+        edge_high_threshold: float | None = None,
+        start_angle: float = np.deg2rad(-45),
+        end_angle: float = np.deg2rad(135),
+        step: int = 360,
     ) -> None:
         self.peak_ratio = peak_ratio
         self.min_distance = min_distance
+        self.start_angle = start_angle
+        self.end_angle = end_angle
+        self.step = step
+
         self.snap_to_edge_map = snap_to_edge_map
 
-        if isinstance(grey_converter, LayerConfig):
-            grey_converter = grey_converter.initialize()
-
-        if isinstance(edge_detector, LayerConfig):
-            edge_detector = edge_detector.initialize()
-
-        if isinstance(thresholder, LayerConfig):
-            thresholder = thresholder.initialize()
-
-        self.grey_converter = grey_converter
-        self.edge_detector = edge_detector
-        self.thresholder = thresholder
-
-        self.hough_transform_parameters = hough_transform_parameters
-
-    def find_bounding_lines(
-        self,
-        image: NDArray[np.bool],
-    ) -> tuple[tuple[Line, Line], tuple[Line, Line]]:
-        hspace, angles, distances = ski.transform.hough_line(
-            image,
-            theta=np.linspace(
-                start=self.hough_transform_parameters.start_angle,
-                stop=self.hough_transform_parameters.end_angle,
-                num=self.hough_transform_parameters.step,
-                endpoint=False,
-            ),
-        )
-
-        peaks = ski.transform.hough_line_peaks(
-            hspace,
-            angles,
-            distances,
-            threshold=(self.peak_ratio * np.max(hspace)),
-            num_peaks=4,
-            min_distance=self.min_distance,
-        )
-
-        verticals: list[Line] = []
-        horizontals: list[Line] = []
-
-        # Warn if number of peaks is less than 4.
-        for _, angle, distance in zip(*peaks):
-            line = Line(
-                slope=np.tan(angle + np.pi / 2),
-                coord=distance * np.array([np.cos(angle), np.sin(angle)]),
-                is_vertical=round(2 * angle / np.pi) == 0,
-            )
-
-            if line.is_vertical:
-                verticals.append(line)
-            else:
-                horizontals.append(line)
-
-        if len(verticals) != 2 or len(horizontals) != 2:
-            raise RuntimeError()
-
-        [left, right] = sorted(verticals, key=lambda line: line.coord[1])
-        [top, bottom] = sorted(horizontals, key=lambda line: line.coord[0])
-
-        return (left, right), (top, bottom)
-
-    def find_corners(self, image: NDArray[np.bool]) -> tuple[NDArray[np.float64], tuple[int, int]]:
-        verticals, horizontals = self.find_bounding_lines(image)
-
-        # Order is guaranteed to be:
-        # [top-left, top-right, bottom-left, bottom-right]
-        corners = np.array(
+        self.preprocessing_layers = list(preprocessing_layers or [])
+        self.preprocessing_layers.extend(
             [
-                line_intersection(horizontal, vertical)
-                for horizontal, vertical in itertools.product(horizontals, verticals)
-            ],
-            dtype=np.float64,
+                Grey(),
+                Threshold(),
+                EdgeDetect(
+                    sigma=edge_sigma,
+                    low_threshold=edge_low_threshold,
+                    high_threshold=edge_high_threshold,
+                ),
+            ]
         )
 
-        if self.snap_to_edge_map:
-            corners = self._snap_corners_to_edge_map(corners, image)
+    def save_image(
+        self,
+        name: str,
+        image: NDArray,
+        lines: Sequence[Line] = (),
+        points: NDArray | None = None,
+        *,
+        format: Literal["image", "xy"] = "xy",
+    ) -> None:
+        figure, axis = plt.subplots()
 
-        crop_height = np.linalg.norm(corners[3] - corners[0])
-        crop_width = np.linalg.norm(corners[1] - corners[0])
+        if image.max() > 1:
+            image /= 255
 
-        shape = (int(crop_height), int(crop_width))
+        axis.imshow(image)
 
-        return corners, shape
+        for line in lines:
+            if format == "image":
+                raise NotImplementedError()
+
+            axis.axline(line.coord, slope=line.slope, color="red")
+
+        if points is not None:
+            axis.scatter(*points.T, color="green")
+
+        axis.axis("off")
+
+        Path("results/").mkdir(parents=True, exist_ok=True)
+        figure.savefig(f"results/{name}.png")
+
+    def _image_corners(self, image: NDArray) -> NDArray[np.intp]:
+        y, x, *_ = image.shape
+        return np.array([(0, 0), (x, 0), (0, y), (x, y)])
 
     @staticmethod
-    def _snap_corners_to_edge_map(
-        corners: NDArray[np.float64], edge_map: NDArray[np.bool]
-    ) -> NDArray[np.float64]:
-        edge_pixels = np.flip(np.argwhere(edge_map), axis=1)
-        vectors = np.expand_dims(corners, axis=1) - edge_pixels
-        distances = np.linalg.vector_norm(vectors, axis=2)
+    def _crop_shape(corners: NDArray) -> tuple[int, int]:
+        [x, y] = np.max(corners, axis=0) - np.min(corners, axis=0)
+        return int(y), int(x)
 
-        return edge_pixels[np.argmin(distances, axis=1)].astype(np.float64)
+    @staticmethod
+    def _image_scale(
+        input: NDArray,
+        output: NDArray,
+    ) -> NDArray:
+        input_height, input_width, *_ = input.shape
+        output_height, output_width, *_ = output.shape
+
+        return np.array([output_height / input_height, output_width / input_width])
+
+    @staticmethod
+    def _sort_coordinates(coordinates: NDArray) -> NDArray:
+        if coordinates.shape[0] != 4:
+            raise ValueError()
+
+        center: NDArray = coordinates.mean(axis=0)
+        vectors = coordinates - center
+
+        angles = np.arctan2(*vectors.T)
+        order = np.argsort(angles)
+
+        return coordinates[order]
 
     def __call__(self, image: NDArray) -> NDArray:
-        grey = self.grey_converter(image)
-        threshold = self.thresholder(grey)
-        edge_map = self.edge_detector(threshold)
+        preprocessed_image = image
 
-        crop_corners, crop_shape = self.find_corners(edge_map)
-        crop_corners *= approximate_image_scaling(edge_map.shape, image.shape)
+        for i, layer in enumerate(self.preprocessing_layers):
+            preprocessed_image = layer(preprocessed_image)
+            self.save_image(f"layer_{i}", preprocessed_image)
 
-        transform = ski.transform.ProjectiveTransform()
-        is_success = transform.estimate(
-            src=crop_corners,
-            dst=get_image_corners(image).astype(np.float64),
+        hough_transform = HoughTransform(
+            preprocessed_image,
+            peak_ratio=self.peak_ratio,
+            min_distance=self.min_distance,
+            start_angle=self.start_angle,
+            end_angle=self.end_angle,
+            step=self.step,
+            max_num_peaks=4,
+        )
+
+        crop_corners = hough_transform.corners(snap_to_edge_map=self.snap_to_edge_map)
+        self.save_image(
+            "hough", preprocessed_image, lines=hough_transform.lines(), points=crop_corners
+        )
+
+        crop_corners = self._sort_coordinates(crop_corners)
+        crop_corners *= self._image_scale(preprocessed_image, image)
+
+        image_corners = self._image_corners(image)
+        image_corners = self._sort_coordinates(image_corners)
+
+        perspective_transform = ski.transform.ProjectiveTransform()
+
+        is_success = perspective_transform.estimate(
+            src=crop_corners.astype(np.float64),
+            dst=image_corners.astype(np.float64),
         )
 
         if not is_success:
             raise RuntimeError()
 
-        warped = ski.transform.warp(image, transform.inverse)
+        warped = ski.transform.warp(image, perspective_transform.inverse)
+        self.save_image("transformed", warped)
 
-        return ski.transform.resize(warped, crop_shape)  # type: ignore
+        shape = self._crop_shape(crop_corners)
+
+        return ski.transform.resize(warped, shape)
