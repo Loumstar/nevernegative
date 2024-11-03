@@ -4,6 +4,7 @@ from typing import Literal, Sequence
 import numpy as np
 import skimage as ski
 from matplotlib import pyplot as plt
+from matplotlib.figure import Figure
 from numpy.typing import NDArray
 
 from nevernegative.layers.base import Layer
@@ -11,8 +12,9 @@ from nevernegative.layers.common.edge import EdgeDetect
 from nevernegative.layers.common.grey import Grey
 from nevernegative.layers.common.threshold import Threshold
 from nevernegative.layers.crop.base import Cropper
+from nevernegative.layers.typing import LayerCallableT
 from nevernegative.layers.utils.corner_detection.hough import HoughTransform
-from nevernegative.layers.utils.line import Line
+from nevernegative.layers.utils.decorators import save_figure
 
 
 class HoughCrop(Cropper):
@@ -22,14 +24,19 @@ class HoughCrop(Cropper):
         peak_ratio: float = 0.2,
         min_distance: int = 30,
         snap_to_edge_map: bool = True,
-        preprocessing_layers: Sequence[Layer] | None = None,
+        preprocessing_layers: Sequence[Layer | LayerCallableT] | None = None,
         edge_sigma: float = 1.0,
         edge_low_threshold: float | None = None,
         edge_high_threshold: float | None = None,
         start_angle: float = np.deg2rad(-45),
         end_angle: float = np.deg2rad(135),
         step: int = 360,
+        offset: int | tuple[int, int] = 15,
+        plot_path: Path | None = None,
+        figure_size: tuple[int, int] = (15, 15),
     ) -> None:
+        super().__init__(plot_path, figure_size)
+
         self.peak_ratio = peak_ratio
         self.min_distance = min_distance
         self.start_angle = start_angle
@@ -51,35 +58,32 @@ class HoughCrop(Cropper):
             ]
         )
 
-    def save_image(
+        self.offset = offset
+
+    @save_figure
+    def plot(
         self,
-        name: str,
         image: NDArray,
-        lines: Sequence[Line] = (),
-        points: NDArray | None = None,
         *,
-        format: Literal["image", "xy"] = "xy",
-    ) -> None:
+        lines: NDArray | None = None,
+        points: NDArray | None = None,
+    ) -> Figure:
         figure, axis = plt.subplots()
 
         if image.max() > 1:
             image /= 255
 
-        axis.imshow(image)
-
-        for line in lines:
-            if format == "image":
-                raise NotImplementedError()
-
-            axis.axline(line.coord, slope=line.slope, color="red")
+        if lines is not None:
+            for [x, y, slope] in lines:
+                axis.axline((x, y), slope=slope, color="red")
 
         if points is not None:
             axis.scatter(*points.T, color="green")
 
+        axis.imshow(image)
         axis.axis("off")
 
-        Path("results/").mkdir(parents=True, exist_ok=True)
-        figure.savefig(f"results/{name}.png")
+        return figure
 
     def _image_corners(self, image: NDArray) -> NDArray[np.intp]:
         y, x, *_ = image.shape
@@ -113,12 +117,41 @@ class HoughCrop(Cropper):
 
         return coordinates[order]
 
+    def _get_image_center(
+        self,
+        image: NDArray,
+        *,
+        format: Literal["cartesian", "image"] = "cartesian",
+    ) -> NDArray:
+        center = np.array(image.shape[:2]) / 2
+
+        if format == "cartesian":
+            center = np.flip(center)
+
+        return center
+
+    def _apply_offset(self, coordinates: NDArray, image: NDArray) -> NDArray:
+        cx, cy = self._get_image_center(image, format="cartesian")
+
+        if isinstance(self.offset, tuple):
+            dx, dy = self.offset
+        else:
+            dx = dy = self.offset
+
+        coordinates[coordinates[:, 0] < cx, 0] += dx
+        coordinates[coordinates[:, 0] > cx, 0] -= dx
+
+        coordinates[coordinates[:, 1] < cy, 1] += dy
+        coordinates[coordinates[:, 1] > cy, 1] -= dy
+
+        return coordinates
+
     def __call__(self, image: NDArray) -> NDArray:
         preprocessed_image = image
 
         for i, layer in enumerate(self.preprocessing_layers):
             preprocessed_image = layer(preprocessed_image)
-            self.save_image(f"layer_{i}", preprocessed_image)
+            self.plot(f"layer_{i}", preprocessed_image)
 
         hough_transform = HoughTransform(
             preprocessed_image,
@@ -130,13 +163,17 @@ class HoughCrop(Cropper):
             max_num_peaks=4,
         )
 
-        crop_corners = hough_transform.corners(snap_to_edge_map=self.snap_to_edge_map)
-        self.save_image(
-            "hough", preprocessed_image, lines=hough_transform.lines(), points=crop_corners
+        self.plot(
+            "hough.png",
+            preprocessed_image,
+            lines=hough_transform.lines,
+            points=hough_transform.corners,
         )
 
-        crop_corners = self._sort_coordinates(crop_corners)
-        crop_corners *= self._image_scale(preprocessed_image, image)
+        corners = self._sort_coordinates(hough_transform.corners).astype(np.float64)
+        corners = self._apply_offset(corners, preprocessed_image)
+
+        corners *= self._image_scale(preprocessed_image, image)
 
         image_corners = self._image_corners(image)
         image_corners = self._sort_coordinates(image_corners)
@@ -144,7 +181,7 @@ class HoughCrop(Cropper):
         perspective_transform = ski.transform.ProjectiveTransform()
 
         is_success = perspective_transform.estimate(
-            src=crop_corners.astype(np.float64),
+            src=corners.astype(np.float64),
             dst=image_corners.astype(np.float64),
         )
 
@@ -152,8 +189,8 @@ class HoughCrop(Cropper):
             raise RuntimeError()
 
         warped = ski.transform.warp(image, perspective_transform.inverse)
-        self.save_image("transformed", warped)
+        self.plot("transformed", warped)
 
-        shape = self._crop_shape(crop_corners)
+        shape = self._crop_shape(corners)
 
         return ski.transform.resize(warped, shape)

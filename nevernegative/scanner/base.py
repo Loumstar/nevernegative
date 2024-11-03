@@ -4,7 +4,7 @@ from typing import Literal, overload
 
 from numpy.typing import NDArray
 
-from nevernegative.layers.color.base import ColorBalancer
+from nevernegative.layers.color.base import Balancer
 from nevernegative.layers.crop.base import Cropper
 from nevernegative.layers.dewarp.base import Dewarper
 
@@ -15,7 +15,7 @@ class Scanner(ABC):
         *,
         dewarper: Dewarper | None = None,
         cropper: Cropper | None = None,
-        color_balancer: ColorBalancer | None = None,
+        color_balancer: Balancer | None = None,
     ) -> None:
         self.dewarper = dewarper
         self.cropper = cropper

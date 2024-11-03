@@ -1,5 +1,5 @@
-from nevernegative.layers.color.base import ColorBalancer
+from nevernegative.layers.color.base import Balancer
 
 
-class ResNetColorBalancer(ColorBalancer):
+class ResNetBalancer(Balancer):
     pass

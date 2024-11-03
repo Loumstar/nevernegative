@@ -1,9 +1,11 @@
+import glob
 from pathlib import Path
 from typing import Literal, overload
 
 import numpy as np
 import rawpy
 import skimage as ski
+import tqdm
 from numpy.typing import NDArray
 
 from nevernegative.scanner.base import Scanner
@@ -22,13 +24,22 @@ class SimpleScanner(Scanner):
 
         return image
 
+    def array(self, image: NDArray) -> NDArray:
+        for layer in (self.dewarper, self.cropper, self.color_balancer):
+            if layer is None:
+                continue
+
+            image = layer(image)
+
+        return image
+
     @overload
     def file(
         self,
         source: str | Path,
         destination: str | Path,
         *,
-        return_array: Literal[True],
+        return_array: Literal[True] = True,
         is_raw: bool = False,
     ) -> NDArray: ...
 
@@ -38,7 +49,7 @@ class SimpleScanner(Scanner):
         source: str | Path,
         destination: str | Path,
         *,
-        return_array: Literal[False],
+        return_array: Literal[False] = False,
         is_raw: bool = False,
     ) -> None: ...
 
@@ -64,31 +75,30 @@ class SimpleScanner(Scanner):
         """
         image = self._load_from_file(source, is_raw=is_raw)
         output = self.array(image)
-        # output = Resize(width=800)(output)
+
+        if isinstance(source, str):
+            source = Path(source)
 
         if isinstance(destination, str):
             destination = Path(destination)
 
-        if destination.is_dir():
-            destination = destination / "output.png"
-
-        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.mkdir(parents=True, exist_ok=True)
 
         if not output.dtype == np.uint8:
             output = (255 * output).astype(np.uint8)
 
-        ski.io.imsave(destination, output)
+        ski.io.imsave(destination / source.with_suffix(".png").name, output)
 
         if return_array:
             return output
 
         return None
 
-    def array(self, image: NDArray) -> NDArray:
-        for layer in (self.dewarper, self.cropper, self.color_balancer):
-            if layer is None:
-                continue
+    def glob(self, source: str, destination: str | Path, *, is_raw: bool = False) -> None:
+        files = glob.glob(source)
 
-            image = layer(image)
+        if not files:
+            raise RuntimeError("No images found.")
 
-        return image
+        for file in tqdm.tqdm(files, desc="Proccesing images"):
+            self.file(file, destination, is_raw=is_raw)

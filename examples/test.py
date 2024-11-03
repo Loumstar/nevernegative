@@ -1,4 +1,9 @@
-from nevernegative.layers.color.histogram_scaling import HistogramScalingColorBalancer
+from pathlib import Path
+
+import skimage as ski
+from numpy.typing import NDArray
+
+from nevernegative.layers.color.histogram import HistogramBalancer
 from nevernegative.layers.common.blur import Blur
 from nevernegative.layers.common.grey import Grey
 from nevernegative.layers.common.resize import Resize
@@ -6,15 +11,24 @@ from nevernegative.layers.crop.hough import HoughCrop
 from nevernegative.layers.dewarp.hough import HoughDewarper
 from nevernegative.scanner.simple import SimpleScanner
 
+
+def rotate_180(image: NDArray) -> NDArray:
+    return ski.transform.rotate(image, angle=180)
+
+
 scanner = SimpleScanner(
     dewarper=HoughDewarper(
-        num_points=51,
-        center="center",
+        num_points=50,
+        method="linear",
+        lengthscale="x",
+        k=3,
         preprocessing_layers=[
+            rotate_180,
             Resize(height=800),
             Grey(),
             Blur(sigma=(3, 3)),
         ],
+        plot_path=Path("results/dewarper"),
     ),
     cropper=HoughCrop(
         min_distance=30,
@@ -24,20 +38,29 @@ scanner = SimpleScanner(
             Grey(),
             Blur(sigma=(2, 2)),
         ],
+        plot_path=Path("results/cropper"),
+        offset=(5, 5),
     ),
-    color_balancer=HistogramScalingColorBalancer(
+    color_balancer=HistogramBalancer(
         red=(0.03, 1),
         green=(0.03, 1),
         blue=(0.05, 1),
         brightness=(0.1, 0.05, -0.1),
         contrast=(0.0, 0.0, -0.5),
+        saturation=0.03,
+        plot_path=Path("results/balancer"),
     ),
 )
 
-
-scanner.file(
-    source="./images/IMG_4863.CR2",
-    destination="./images/results/IMG_4863.png",
-    return_array=False,
+scanner.glob(
+    source="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/expired_scans/*.CR2",
+    destination="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/expired_scans/results/new",
     is_raw=True,
 )
+
+# scanner.file(
+#     source="./images/IMG_4860.CR2",
+#     destination="./images/results/new",
+#     return_array=False,
+#     is_raw=True,
+# )
