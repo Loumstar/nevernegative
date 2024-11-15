@@ -7,14 +7,15 @@ from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 from numpy.typing import NDArray
 
+from nevernegative.layers import utils
 from nevernegative.layers.base import Layer
 from nevernegative.layers.common.edge import EdgeDetect
 from nevernegative.layers.common.grey import Grey
 from nevernegative.layers.common.threshold import Threshold
 from nevernegative.layers.dewarp.base import Dewarper
 from nevernegative.layers.typing import LayerCallableT
-from nevernegative.layers.utils.corner_detection.hough import HoughTransform
 from nevernegative.layers.utils.decorators import save_figure
+from nevernegative.layers.utils.hough import HoughTransform
 
 
 class HoughDewarper(Dewarper):
@@ -40,10 +41,10 @@ class HoughDewarper(Dewarper):
         super().__init__(plot_path, figure_size)
 
         self.num_points = num_points
-        self.method = method
+        self.method: Literal["radial", "linear"] = method
         self.k = k
 
-        self.lengthscale = lengthscale
+        self.lengthscale: Literal["x", "y", "xy"] = lengthscale
 
         self.peak_ratio = peak_ratio
         self.min_distance = min_distance
@@ -102,16 +103,11 @@ class HoughDewarper(Dewarper):
     def plot_warping_contour(self, image: NDArray, k: NDArray) -> Figure:
         figure, axis = plt.subplots()
 
-        [cx, cy] = self._get_image_center(image, format="cartesian")
-
+        [cx, cy] = center = utils.image.get_center(image, format="cartesian")
         x, y = np.meshgrid(np.arange(image.shape[1]), np.arange(image.shape[0]))
 
-        if self.lengthscale == "x":
-            euclidean = (((x - cx) / cx) ** 2) + (((y - cy) / cx) ** 2)
-        elif self.lengthscale == "y":
-            euclidean = (((x - cx) / cy) ** 2) + (((y - cy) / cy) ** 2)
-        if self.lengthscale == "xy":
-            euclidean = (((x - cx) / cx) ** 2) + (((y - cy) / cy) ** 2)
+        lengthscale = utils.image.get_lengthscale(self.lengthscale, image_center=center)
+        euclidean = (((x - cx) / lengthscale) ** 2) + (((y - cy) / lengthscale) ** 2)
 
         powers = np.arange(k.shape[0]) + 1  # k
         euclidean_matrix = euclidean[..., np.newaxis] ** powers  # N x k
@@ -148,169 +144,24 @@ class HoughDewarper(Dewarper):
         result = np.stack((distorted_grey, undistorted_grey, undistorted_grey), axis=-1)
 
         axis.imshow(result)
-
         axis.axis("off")
 
         return figure
-
-    def sample_coordinates(self, c1: NDArray, c2: NDArray) -> NDArray:
-        x1, y1 = c1
-        x2, y2 = c2
-
-        x_sample = np.linspace(x1, x2, num=self.num_points, endpoint=True)
-        y_sample = np.linspace(y1, y2, num=self.num_points, endpoint=True)
-
-        return np.stack([x_sample, y_sample], axis=-1)
-
-    def _intersect(
-        self,
-        lines: NDArray,
-        *,
-        bounds: NDArray | None = None,
-        eps: float = 1e-9,
-    ) -> NDArray:
-        [xs, ys, slope] = np.moveaxis(lines, -1, 0)  # Each are Nx2
-
-        [x1, x2] = xs.T  # N
-        [y1, y2] = ys.T  # N
-        [slope_1, slope_2] = slope.T  # N
-
-        a = y1 - (slope_1 * x1)
-        b = y2 - (slope_2 * x2)
-
-        # Handle divide by zero warnings
-        # the intersection values will be large and eventually thrown out.
-        slope_1[slope_1 == slope_2] += eps
-
-        x = (b - a) / (slope_1 - slope_2)
-
-        y = np.where(
-            np.isclose(x, x1),
-            (slope_2 * (x - x2)) + y2,
-            (slope_1 * (x - x1)) + y1,
-        )
-
-        if bounds is not None:
-            x_bounds, y_bounds = np.moveaxis(bounds, 2, 0)
-            x_bounds = np.sort(x_bounds, axis=1)
-            y_bounds = np.sort(y_bounds, axis=1)
-
-            # If it falls outside of the bounds, set the result to NaN
-            x[np.logical_or(x < x_bounds[:, 0], x > x_bounds[:, 1])] = np.nan
-            y[np.logical_or(y < y_bounds[:, 0], y > y_bounds[:, 1])] = np.nan
-
-        return np.stack((x, y), axis=-1)
-
-    def _sample_undistorted_points(self, corners: NDArray, image: NDArray) -> NDArray:
-        vectors = corners[:, np.newaxis] - corners  # NxNx2
-        distances = np.linalg.norm(vectors, axis=2)  # NxX
-        distances[distances == 0] = np.inf
-
-        neighbour_1, neighbour_2 = np.argsort(distances, axis=1).T[:2]  # each N
-        corner_indices = np.arange(corners.shape[0])  # N
-
-        neighbour_1_indices = np.stack((corner_indices, neighbour_1), axis=-1)  # Nx2
-        neighbour_2_indices = np.stack((corner_indices, neighbour_2), axis=-1)  # Nx2
-
-        pair_indices = np.concatenate((neighbour_1_indices, neighbour_2_indices), axis=0)  # 2Nx2
-        pair_indices = np.unique(np.sort(pair_indices, axis=1), axis=0)  # Mx2
-
-        source, destination = corners[pair_indices].transpose((1, 0, 2))  # each Mx2
-
-        if self.method == "linear":
-            t = np.linspace(0, 1, num=self.num_points // 4, endpoint=False)
-            samples = source[..., np.newaxis] + (destination - source)[..., np.newaxis] * t
-
-            return np.swapaxes(samples, 1, 2).reshape(-1, 2)
-
-        vector = destination - source  # Mx2
-
-        slope = vector[:, 1] / vector[:, 0]  # M
-
-        corner_lines = np.concatenate((source, slope[:, np.newaxis]), axis=1)  # Mx3
-
-        center = self._get_image_center(image, format="cartesian")
-
-        angles = np.tan(np.linspace(0, np.pi, num=self.num_points // 2, endpoint=False))
-        radial_source = np.tile(center, reps=(self.num_points // 2, 1))
-        radial_lines = np.concatenate((radial_source, angles[:, np.newaxis]), axis=1)  # Mx3
-
-        corner_line_indices = np.arange(corner_lines.shape[0])
-        radial_line_indices = np.arange(radial_lines.shape[0])
-
-        # Create combinations of line indices and filter combinations where it is the same line.
-        combinations = np.array(np.meshgrid(corner_line_indices, radial_line_indices))
-        combinations = combinations.T.reshape(-1, 2)
-
-        line_pairs = np.stack(
-            (corner_lines[combinations[:, 0]], radial_lines[combinations[:, 1]]), axis=1
-        )
-
-        bounds = corners[pair_indices[combinations[:, 0]]]
-
-        points = self._intersect(line_pairs, bounds=bounds)
-        self.plot("radial.png", image, lines=radial_lines)
-        mask = np.logical_or(np.isnan(points[:, 0]), np.isnan(points[:, 1]))
-        points = points[~mask]
-
-        return points
-
-    def intersect_with_edge_map(
-        self, undistorted_points: NDArray, image: NDArray[np.bool], hough_transform: HoughTransform
-    ) -> NDArray:
-        if self.method == "linear":
-            return hough_transform.snap(undistorted_points)
-
-        edge_pixels = np.flip(np.argwhere(image), axis=1)  # M,2
-        center = self._get_image_center(image, format="cartesian")
-
-        vectors = center - undistorted_points  # Nx2
-        euclidean = np.linalg.norm(vectors, axis=1)  # N
-        distortion_vector = edge_pixels[:, np.newaxis] - undistorted_points  # MxNx2
-
-        t = np.sum(distortion_vector * vectors, axis=2) / (euclidean**2)  # MxN
-
-        projections: NDArray = (t[..., np.newaxis] * vectors) + undistorted_points[: np.newaxis]
-        score = np.linalg.norm(projections - edge_pixels[:, np.newaxis], axis=2)
-        score += 10 * np.abs(t)  # MxN
-
-        return edge_pixels[np.argmin(score, axis=0)]
-
-    def _get_image_center(
-        self,
-        image: NDArray,
-        *,
-        format: Literal["cartesian", "image"] = "cartesian",
-    ) -> NDArray:
-        center = np.array(image.shape[:2]) / 2
-
-        if format == "cartesian":
-            center = np.flip(center)
-
-        return center
 
     def _estimate_k(
         self,
         undistorted_points: NDArray,
         distorted_points: NDArray,
-        image: NDArray,
+        image_center: NDArray,
     ) -> NDArray:
-        center = self._get_image_center(image, format="cartesian")
-
-        if self.lengthscale == "x":
-            lengthscale = center[0]
-        elif self.lengthscale == "y":
-            lengthscale = center[1]
-        if self.lengthscale == "xy":
-            lengthscale = center
+        lengthscale = utils.image.get_lengthscale(self.lengthscale, image_center=image_center)
 
         vector = (undistorted_points - distorted_points) / lengthscale
-        radii = np.linalg.norm((distorted_points - center) / lengthscale, axis=1)
+        radii = np.linalg.norm((distorted_points - image_center) / lengthscale, axis=1)
 
         difference = np.linalg.norm(vector, axis=1)
         powers = np.arange(self.k) + 1
         radius_matrix = radii[..., np.newaxis] ** powers
-        # radius_matrix = np.stack([radii**1, radii**2, radii**3])
 
         k, *_ = np.linalg.lstsq(radius_matrix, difference / radii)
 
@@ -324,12 +175,7 @@ class HoughDewarper(Dewarper):
         center: NDArray,
         invert: bool = False,
     ) -> NDArray:
-        if self.lengthscale == "x":
-            lengthscale = center[0]
-        elif self.lengthscale == "y":
-            lengthscale = center[1]
-        if self.lengthscale == "xy":
-            lengthscale = center
+        lengthscale = utils.image.get_lengthscale(self.lengthscale, image_center=center)
 
         normalised = (xy - center) / lengthscale
         euclidean = np.linalg.norm(normalised, axis=1)  # N
@@ -361,46 +207,54 @@ class HoughDewarper(Dewarper):
             snap_corners_to_edge_map=True,
         )
 
-        corners = hough_transform.corners
         self.plot(
             "hough",
             preprocessed_image,
             lines=hough_transform.lines,
-            undistorted_points=corners,
+            undistorted_points=hough_transform.corners,
         )
 
-        undistorted_points = self._sample_undistorted_points(corners, preprocessed_image)
-        distorted_points = self.intersect_with_edge_map(
-            undistorted_points, preprocessed_image, hough_transform
+        center = utils.image.get_center(preprocessed_image, format="cartesian")
+
+        undistorted = utils.corners.sample_bounding_box(
+            utils.corners.corner_pairs(hough_transform.corners),
+            num_points=self.num_points,
+            image_center=center,
+            mode=self.method,
         )
 
-        k = self._estimate_k(undistorted_points, distorted_points, preprocessed_image)
+        distorted = utils.snap.snap_to_edge_map(
+            undistorted,
+            preprocessed_image,
+            method=self.method,
+        )
 
         self.plot(
             "points",
             preprocessed_image,
-            distorted_points=distorted_points,
-            undistorted_points=undistorted_points,
+            distorted_points=distorted,
+            undistorted_points=undistorted,
         )
+
+        k = self._estimate_k(undistorted, distorted, center)
 
         self.plot_warping_contour("contour.png", image, k)
         self.plot_warping_multiplier("multiplier.png", k)
 
         # FIXME: handle which way to warp based on whether distortion is inside the box or not.
-        distorted = ski.transform.warp(
+        fixed = ski.transform.warp(
             image,
             inverse_map=self._inverse_map,
             order=1,
             map_args={
                 "k": k,
                 "invert": False,
-                "center": self._get_image_center(image, format="cartesian"),
+                "center": utils.image.get_center(image, format="cartesian"),
             },
         )
-        # distorted = self.barrel_warp(image, k1, k2, k3, unwarp=False)
 
         self.plot("distorted", image)
-        self.plot("undistorted", distorted)
-        self.plot_image_overlay("overlay", image, distorted)
+        self.plot("undistorted", fixed)
+        self.plot_image_overlay("overlay", image, fixed)
 
-        return distorted
+        return fixed

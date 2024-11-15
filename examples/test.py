@@ -18,10 +18,10 @@ def rotate_180(image: NDArray) -> NDArray:
 
 scanner = SimpleScanner(
     dewarper=HoughDewarper(
-        num_points=50,
+        num_points=100,
         method="linear",
         lengthscale="x",
-        k=3,
+        k=2,
         preprocessing_layers=[
             rotate_180,
             Resize(height=800),
@@ -53,8 +53,8 @@ scanner = SimpleScanner(
 )
 
 scanner.glob(
-    source="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/expired_scans/*.CR2",
-    destination="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/expired_scans/results/new",
+    source="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/colorplus/*.CR2",
+    destination="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/colorplus/results",
     is_raw=True,
 )
 

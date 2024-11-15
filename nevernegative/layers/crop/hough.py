@@ -13,8 +13,8 @@ from nevernegative.layers.common.grey import Grey
 from nevernegative.layers.common.threshold import Threshold
 from nevernegative.layers.crop.base import Cropper
 from nevernegative.layers.typing import LayerCallableT
-from nevernegative.layers.utils.corner_detection.hough import HoughTransform
 from nevernegative.layers.utils.decorators import save_figure
+from nevernegative.layers.utils.hough import HoughTransform
 
 
 class HoughCrop(Cropper):

@@ -2,6 +2,8 @@ import numpy as np
 import skimage as ski
 from numpy.typing import NDArray
 
+from nevernegative.layers import utils
+
 
 class HoughTransform:
     def __init__(
@@ -58,30 +60,6 @@ class HoughTransform:
     def distances(self) -> NDArray:
         return self._distances
 
-    def _intersect(self, lines: NDArray, eps: float = 1e-6) -> NDArray:
-        [xs, ys, slope] = np.moveaxis(lines, -1, 0)  # Each are Nx2
-
-        [x1, x2] = xs.T  # N
-        [y1, y2] = ys.T  # N
-        [slope_1, slope_2] = slope.T  # N
-
-        a = y1 - (slope_1 * x1)
-        b = y2 - (slope_2 * x2)
-
-        # Handle divide by zero warnings
-        # the intersection values will be large and eventually thrown out.
-        slope_1[slope_1 == slope_2] += eps
-
-        x = (b - a) / (slope_1 - slope_2)
-
-        y = np.where(
-            np.isclose(x, x1),
-            (slope_2 * (x - x2)) + y2,
-            (slope_1 * (x - x1)) + y1,
-        )
-
-        return np.stack((x, y), axis=-1)
-
     @property
     def peaks(self) -> NDArray:
         if self._peaks is not None and self.cache:
@@ -125,13 +103,6 @@ class HoughTransform:
 
         return corners[np.logical_and(x_mask, y_mask)]
 
-    def snap(self, corners: NDArray) -> NDArray:
-        edge_pixels = np.flip(np.argwhere(self._image), axis=1)
-        vectors = np.expand_dims(corners, axis=1) - edge_pixels
-        distances = np.linalg.vector_norm(vectors, axis=2)
-
-        return edge_pixels[np.argmin(distances, axis=1)]
-
     @property
     def corners(self) -> NDArray:
         if self._corners is not None and self.cache:
@@ -147,11 +118,11 @@ class HoughTransform:
 
         lines_to_intersect = self.lines[combinations].astype(np.float64)  # Nx2x3
 
-        corners = self._intersect(lines_to_intersect)
+        corners = utils.line.intersect(lines_to_intersect)
         corners = self._filter_out_of_bound_corners(corners)
 
         if self.snap_corners_to_edge_map:
-            corners = self.snap(corners)
+            corners = utils.snap.snap_to_edge_map(corners, self._image, method="linear")
 
         self._corners = corners
 
