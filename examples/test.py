@@ -53,8 +53,8 @@ scanner = SimpleScanner(
 )
 
 scanner.glob(
-    source="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/colorplus/*.CR2",
-    destination="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/colorplus/results",
+    source="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/hanalogital/*.CR2",
+    destination="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/hanalogital/results",
     is_raw=True,
 )
 

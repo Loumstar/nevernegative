@@ -1,6 +1,5 @@
 import glob
 from pathlib import Path
-from typing import Literal, overload
 
 import numpy as np
 import rawpy
@@ -33,34 +32,13 @@ class SimpleScanner(Scanner):
 
         return image
 
-    @overload
     def file(
         self,
         source: str | Path,
         destination: str | Path,
         *,
-        return_array: Literal[True] = True,
         is_raw: bool = False,
-    ) -> NDArray: ...
-
-    @overload
-    def file(
-        self,
-        source: str | Path,
-        destination: str | Path,
-        *,
-        return_array: Literal[False] = False,
-        is_raw: bool = False,
-    ) -> None: ...
-
-    def file(
-        self,
-        source: str | Path,
-        destination: str | Path,
-        *,
-        return_array: bool = False,
-        is_raw: bool = False,
-    ) -> NDArray | None:
+    ) -> NDArray:
         """Transform the image from a file.
 
         Args:
@@ -89,13 +67,11 @@ class SimpleScanner(Scanner):
 
         ski.io.imsave(destination / source.with_suffix(".png").name, output)
 
-        if return_array:
-            return output
-
-        return None
+        return output
 
     def glob(self, source: str, destination: str | Path, *, is_raw: bool = False) -> None:
         files = glob.glob(source)
+        files.sort()
 
         if not files:
             raise RuntimeError("No images found.")

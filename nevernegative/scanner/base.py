@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Literal, overload
 
 from numpy.typing import NDArray
 
@@ -21,37 +20,14 @@ class Scanner(ABC):
         self.cropper = cropper
         self.color_balancer = color_balancer
 
-    @overload
     @abstractmethod
     def file(
         self,
         source: str | Path,
         destination: str | Path,
         *,
-        return_array: Literal[True],
         is_raw: bool = False,
-    ) -> NDArray: ...
-
-    @overload
-    @abstractmethod
-    def file(
-        self,
-        source: str | Path,
-        destination: str | Path,
-        *,
-        return_array: Literal[False],
-        is_raw: bool = False,
-    ) -> None: ...
-
-    @abstractmethod
-    def file(
-        self,
-        source: str | Path,
-        destination: str | Path,
-        *,
-        return_array: bool = False,
-        is_raw: bool = False,
-    ) -> NDArray | None:
+    ) -> NDArray:
         """Transform the image from a file.
 
         Args:

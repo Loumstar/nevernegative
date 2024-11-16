@@ -9,11 +9,12 @@ from numpy.typing import NDArray
 
 from nevernegative.layers import utils
 from nevernegative.layers.base import Layer
+from nevernegative.layers.chain import LayerChain
 from nevernegative.layers.common.edge import EdgeDetect
 from nevernegative.layers.common.grey import Grey
 from nevernegative.layers.common.threshold import Threshold
 from nevernegative.layers.dewarp.base import Dewarper
-from nevernegative.layers.typing import LayerCallableT
+from nevernegative.layers.typing import LayerCallable
 from nevernegative.layers.utils.decorators import save_figure
 from nevernegative.layers.utils.hough import HoughTransform
 
@@ -34,7 +35,7 @@ class HoughDewarper(Dewarper):
         end_angle: float = np.deg2rad(135),
         step: int = 360,
         lengthscale: Literal["x", "y", "xy"] = "x",
-        preprocessing_layers: Sequence[Layer | LayerCallableT] | None = None,
+        preprocessing_layers: Sequence[Layer | LayerCallable] | None = None,
         plot_path: Path | None = None,
         figure_size: tuple[int, int] = (15, 15),
     ) -> None:
@@ -52,9 +53,9 @@ class HoughDewarper(Dewarper):
         self.end_angle = end_angle
         self.step = step
 
-        self.preprocessing_layers = list(preprocessing_layers or [])
-        self.preprocessing_layers.extend(
-            [
+        self._preprocessing_layers = LayerChain(preprocessing_layers)
+        self._to_edge_map = LayerChain(
+            (
                 Grey(),
                 Threshold(),
                 EdgeDetect(
@@ -62,7 +63,7 @@ class HoughDewarper(Dewarper):
                     low_threshold=edge_low_threshold,
                     high_threshold=edge_high_threshold,
                 ),
-            ]
+            )
         )
 
     @save_figure
@@ -190,14 +191,14 @@ class HoughDewarper(Dewarper):
         return ((normalised / (1 - multiplier)[:, None]) * lengthscale) + center
 
     def __call__(self, image: NDArray) -> NDArray:
-        preprocessed_image = image
+        preprocessed_image = self._preprocessing_layers(image)
+        self.plot("preprocessed.png", preprocessed_image)
 
-        for i, layer in enumerate(self.preprocessing_layers):
-            preprocessed_image = layer(preprocessed_image)
-            self.plot(f"layer_{i}", preprocessed_image)
+        edge_map = self._to_edge_map(preprocessed_image)
+        self.plot("edge_map.png", edge_map)
 
         hough_transform = HoughTransform(
-            preprocessed_image,
+            edge_map,
             peak_ratio=self.peak_ratio,
             min_distance=self.min_distance,
             start_angle=self.start_angle,
@@ -209,12 +210,12 @@ class HoughDewarper(Dewarper):
 
         self.plot(
             "hough",
-            preprocessed_image,
+            edge_map,
             lines=hough_transform.lines,
             undistorted_points=hough_transform.corners,
         )
 
-        center = utils.image.get_center(preprocessed_image, format="cartesian")
+        center = utils.image.get_center(edge_map, format="cartesian")
 
         undistorted = utils.corners.sample_bounding_box(
             utils.corners.corner_pairs(hough_transform.corners),
@@ -225,13 +226,13 @@ class HoughDewarper(Dewarper):
 
         distorted = utils.snap.snap_to_edge_map(
             undistorted,
-            preprocessed_image,
+            edge_map,
             method=self.method,
         )
 
         self.plot(
             "points",
-            preprocessed_image,
+            edge_map,
             distorted_points=distorted,
             undistorted_points=undistorted,
         )

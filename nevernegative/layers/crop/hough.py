@@ -8,11 +8,12 @@ from matplotlib.figure import Figure
 from numpy.typing import NDArray
 
 from nevernegative.layers.base import Layer
+from nevernegative.layers.chain import LayerChain
 from nevernegative.layers.common.edge import EdgeDetect
 from nevernegative.layers.common.grey import Grey
 from nevernegative.layers.common.threshold import Threshold
 from nevernegative.layers.crop.base import Cropper
-from nevernegative.layers.typing import LayerCallableT
+from nevernegative.layers.typing import LayerCallable
 from nevernegative.layers.utils.decorators import save_figure
 from nevernegative.layers.utils.hough import HoughTransform
 
@@ -24,7 +25,7 @@ class HoughCrop(Cropper):
         peak_ratio: float = 0.2,
         min_distance: int = 30,
         snap_to_edge_map: bool = True,
-        preprocessing_layers: Sequence[Layer | LayerCallableT] | None = None,
+        preprocessing_layers: Sequence[Layer | LayerCallable] | None = None,
         edge_sigma: float = 1.0,
         edge_low_threshold: float | None = None,
         edge_high_threshold: float | None = None,
@@ -45,9 +46,9 @@ class HoughCrop(Cropper):
 
         self.snap_to_edge_map = snap_to_edge_map
 
-        self.preprocessing_layers = list(preprocessing_layers or [])
-        self.preprocessing_layers.extend(
-            [
+        self.preprocessing_layers = LayerChain(preprocessing_layers)
+        self._to_edge_map = LayerChain(
+            (
                 Grey(),
                 Threshold(),
                 EdgeDetect(
@@ -55,7 +56,7 @@ class HoughCrop(Cropper):
                     low_threshold=edge_low_threshold,
                     high_threshold=edge_high_threshold,
                 ),
-            ]
+            )
         )
 
         self.offset = offset
@@ -147,14 +148,14 @@ class HoughCrop(Cropper):
         return coordinates
 
     def __call__(self, image: NDArray) -> NDArray:
-        preprocessed_image = image
+        preprocessed_image = self.preprocessing_layers(image)
+        self.plot("preprocessed.png", preprocessed_image)
 
-        for i, layer in enumerate(self.preprocessing_layers):
-            preprocessed_image = layer(preprocessed_image)
-            self.plot(f"layer_{i}", preprocessed_image)
+        edge_map = self._to_edge_map(preprocessed_image)
+        self.plot("edge_map.png", preprocessed_image)
 
         hough_transform = HoughTransform(
-            preprocessed_image,
+            edge_map,
             peak_ratio=self.peak_ratio,
             min_distance=self.min_distance,
             start_angle=self.start_angle,
@@ -165,15 +166,15 @@ class HoughCrop(Cropper):
 
         self.plot(
             "hough.png",
-            preprocessed_image,
+            edge_map,
             lines=hough_transform.lines,
             points=hough_transform.corners,
         )
 
         corners = self._sort_coordinates(hough_transform.corners).astype(np.float64)
-        corners = self._apply_offset(corners, preprocessed_image)
+        corners = self._apply_offset(corners, edge_map)
 
-        corners *= self._image_scale(preprocessed_image, image)
+        corners *= self._image_scale(edge_map, image)
 
         image_corners = self._image_corners(image)
         image_corners = self._sort_coordinates(image_corners)
