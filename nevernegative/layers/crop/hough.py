@@ -152,7 +152,6 @@ class HoughCrop(Cropper):
         self.plot("preprocessed.png", preprocessed_image)
 
         edge_map = self._to_edge_map(preprocessed_image)
-        self.plot("edge_map.png", preprocessed_image)
 
         hough_transform = HoughTransform(
             edge_map,
@@ -190,7 +189,7 @@ class HoughCrop(Cropper):
             raise RuntimeError()
 
         warped = ski.transform.warp(image, perspective_transform.inverse)
-        self.plot("transformed", warped)
+        self.plot("transformed.png", warped)
 
         shape = self._crop_shape(corners)
 

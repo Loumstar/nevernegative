@@ -7,39 +7,22 @@ from matplotlib.figure import Figure
 from numpy.typing import NDArray
 
 from nevernegative.layers.color.base import Balancer
-from nevernegative.layers.common.grey import Grey
+from nevernegative.layers.color.presets import FilmPreset
 from nevernegative.layers.utils.decorators import save_figure
 
 
 class WhitePointBalancer(Balancer):
     def __init__(
         self,
-        brightness: float | tuple[float, float, float] = 0.0,
-        contrast: float | tuple[float, float, float] = 0.0,
-        saturation: float = 0.05,
-        *,
+        preset: FilmPreset,
         plot_path: Path | None = None,
         figure_size: tuple[int, int] = (15, 15),
-        invert: bool = True,
     ) -> None:
-        super().__init__(
-            brightness,
-            contrast,
-            saturation,
-            plot_path=plot_path,
-            figure_size=figure_size,
-        )
-
-        self._grey = Grey()
-        self._invert = invert
+        super().__init__(preset, plot_path=plot_path, figure_size=figure_size)
 
     @save_figure
     def plot(self, image: NDArray, *, points: NDArray | None = None) -> Figure:
         figure, axis = plt.subplots()
-
-        if image.max() > 1:
-            image /= 255
-
         axis.imshow(image)
 
         if points is not None:
@@ -50,21 +33,24 @@ class WhitePointBalancer(Balancer):
         return figure
 
     def __call__(self, image: NDArray) -> NDArray:
-        grey = self._grey(image)
+        grey = ski.color.rgb2gray(image)
 
         index = np.unravel_index(grey.argmax(), grey.shape)
         white = image[index]
 
-        inverted = ski.util.invert(image) if self._invert else image
+        unbalanced = self.apply_invert(image)
 
-        self.plot("white.png", inverted, points=white[np.newaxis])
-        self.plot_balancing("original.png", inverted)
+        self.plot("white.png", unbalanced, points=white[np.newaxis])
+        self.plot_balancing("original.png", unbalanced)
 
-        balanced = image.astype(np.float64) / white
-        balanced = np.clip(balanced, 0, 1)
+        balanced = image / white
 
-        if self._invert:
-            balanced = ski.util.invert(balanced)
+        balanced = self.apply_invert(image)
+        balanced = self.apply_contrast(image)
+        balanced = self.apply_brightness(image)
+        balanced = self.apply_saturation(image)
+        balanced = self.apply_clip(image)
+        balanced = self.apply_monochrome(image)
 
         self.plot_balancing("balanced.png", balanced)
 

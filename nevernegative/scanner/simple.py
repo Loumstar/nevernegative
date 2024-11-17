@@ -1,7 +1,6 @@
 import glob
 from pathlib import Path
 
-import numpy as np
 import rawpy
 import skimage as ski
 import tqdm
@@ -11,7 +10,7 @@ from nevernegative.scanner.base import Scanner
 
 
 class SimpleScanner(Scanner):
-    def _load_from_file(self, source: str | Path, *, is_raw: bool = False) -> NDArray:
+    def _from_file(self, source: str | Path, *, is_raw: bool = False) -> NDArray:
         if isinstance(source, str):
             source = Path(source)
 
@@ -21,7 +20,7 @@ class SimpleScanner(Scanner):
         else:
             image = ski.io.imread(source)
 
-        return image
+        return ski.util.img_as_float64(image)
 
     def array(self, image: NDArray) -> NDArray:
         for layer in (self.dewarper, self.cropper, self.color_balancer):
@@ -51,7 +50,7 @@ class SimpleScanner(Scanner):
         Returns:
             NDArray[Any] | None: _description_
         """
-        image = self._load_from_file(source, is_raw=is_raw)
+        image = self._from_file(source, is_raw=is_raw)
         output = self.array(image)
 
         if isinstance(source, str):
@@ -61,11 +60,9 @@ class SimpleScanner(Scanner):
             destination = Path(destination)
 
         destination.mkdir(parents=True, exist_ok=True)
+        result = ski.util.img_as_ubyte(output)
 
-        if not output.dtype == np.uint8:
-            output = (255 * output).astype(np.uint8)
-
-        ski.io.imsave(destination / source.with_suffix(".png").name, output)
+        ski.io.imsave(destination / source.with_suffix(".png").name, result)
 
         return output
 

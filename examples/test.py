@@ -4,6 +4,7 @@ import skimage as ski
 from numpy.typing import NDArray
 
 from nevernegative.layers.color.histogram import HistogramBalancer
+from nevernegative.layers.color.presets import COLOR_PLUS_200
 from nevernegative.layers.common.blur import Blur
 from nevernegative.layers.common.grey import Grey
 from nevernegative.layers.common.resize import Resize
@@ -42,12 +43,7 @@ scanner = SimpleScanner(
         offset=(5, 5),
     ),
     color_balancer=HistogramBalancer(
-        red=(0.03, 1),
-        green=(0.03, 1),
-        blue=(0.05, 1),
-        brightness=(0.1, 0.05, -0.1),
-        contrast=(0.0, 0.0, -0.5),
-        saturation=0.03,
+        preset=COLOR_PLUS_200,
         plot_path=Path("results/balancer"),
     ),
 )

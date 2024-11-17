@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from pathlib import Path
 from typing import Any, Literal, overload
 
@@ -10,6 +10,7 @@ from matplotlib.figure import Figure
 from numpy.typing import NDArray
 
 from nevernegative.layers.base import Layer
+from nevernegative.layers.color.presets import FilmPreset
 from nevernegative.layers.utils.decorators import save_figure
 
 
@@ -21,19 +22,14 @@ class Balancer(Layer, ABC):
 
     def __init__(
         self,
-        brightness: float | tuple[float, float, float] = 0.0,
-        contrast: float | tuple[float, float, float] = 0.0,
-        saturation: float = 0.05,
+        preset: FilmPreset,
         *,
         plot_path: Path | None = None,
         figure_size: tuple[int, int] = (15, 15),
     ) -> None:
         super().__init__(plot_path, figure_size)
 
-        self.brightness = np.array(brightness)
-        self.contrast = np.array(contrast)
-
-        self.saturation = saturation
+        self.preset = preset
         self.plot_path = plot_path
 
     @overload
@@ -133,23 +129,29 @@ class Balancer(Layer, ABC):
 
         return figure
 
-    def basic_balancing(self, image: NDArray) -> NDArray:
-        image = ((image - 0.5) / (1 - self.contrast)) + 0.5
-        image += self.brightness
+    def apply_invert(self, image: NDArray) -> NDArray:
+        if self.preset.is_negative:
+            image = ski.util.invert(image)
 
+        return image
+
+    def apply_contrast(self, image: NDArray) -> NDArray:
+        return ((image - 0.5) / (1 - self.preset.channelwise_contrast)) + 0.5
+
+    def apply_brightness(self, image: NDArray) -> NDArray:
+        return image + self.preset.channelwise_brightness
+
+    def apply_saturation(self, image: NDArray) -> NDArray:
         hsv = ski.color.rgb2hsv(image)
-        hsv[..., 1] += self.saturation
-        image = ski.color.hsv2rgb(hsv)
+        hsv[..., 1] += self.preset.saturation
 
+        return ski.color.hsv2rgb(hsv)
+
+    def apply_clip(self, image: NDArray) -> NDArray:
         return np.clip(image, 0, 1)
 
-    @abstractmethod
-    def __call__(self, image: NDArray) -> NDArray:
-        """Crop an image, returning only the portion that contains the negative.
+    def apply_monochrome(self, image: NDArray) -> NDArray:
+        if self.preset.is_monochrome:
+            image = ski.color.rgb2gray(image)
 
-        Args:
-            image (RGBImage[DTypeT]): _description_
-
-        Returns:
-            RGBImage[DTypeT]: _description_
-        """
+        return image

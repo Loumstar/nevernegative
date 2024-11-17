@@ -21,9 +21,6 @@ class Layer(ABC):
     def plot(self, image: NDArray) -> Figure:
         figure, axis = plt.subplots()
 
-        if image.max() > 1:
-            image /= 255
-
         axis.imshow(image)
         axis.axis("off")
 
