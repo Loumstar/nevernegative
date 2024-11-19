@@ -71,9 +71,6 @@ class HoughCrop(Cropper):
     ) -> Figure:
         figure, axis = plt.subplots()
 
-        if image.max() > 1:
-            image /= 255
-
         if lines is not None:
             for [x, y, slope] in lines:
                 axis.axline((x, y), slope=slope, color="red")

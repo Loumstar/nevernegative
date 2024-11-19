@@ -44,8 +44,9 @@ class HistogramBalancer(Balancer):
         image = self.apply_contrast(image)
         image = self.apply_brightness(image)
         image = self.apply_saturation(image)
-        image = self.apply_clip(image)
         image = self.apply_monochrome(image)
+
+        image = self.apply_clip(image)
 
         self.plot_balancing("balanced.png", image)
 

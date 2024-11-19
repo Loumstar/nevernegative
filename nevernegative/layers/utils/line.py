@@ -19,9 +19,7 @@ def intersect(
 
     # Handle divide by zero warnings
     # the intersection values will be large and eventually thrown out.
-    slope_1[slope_1 == slope_2] += eps
-
-    x = (b - a) / (slope_1 - slope_2)
+    x = (b - a) / ((slope_1 - slope_2) + eps)
 
     y = np.where(
         np.isclose(x, x1),

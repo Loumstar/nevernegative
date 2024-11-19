@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 
 
 class ChannelPreset(BaseModel):
-    bounds: tuple[float, float] = (0.0, 1.0)
+    bounds: tuple[float, float] = (0.01, 0.99)
     brightness: float = 0.0
     contrast: float = 0.0
 
@@ -65,4 +65,31 @@ COLOR_PLUS_200 = FilmPreset(
     saturation=0.03,
     is_negative=True,
     is_monochrome=False,
+)
+
+HANALOGITAL_FLOURITE = FilmPreset(
+    red=ChannelPreset(
+        bounds=(0.03, 1.0),
+        brightness=-0.05,
+    ),
+    green=ChannelPreset(
+        bounds=(0.03, 1),
+        brightness=0.05,
+    ),
+    blue=ChannelPreset(
+        bounds=(0.05, 1),
+        brightness=-0.1,
+        contrast=-0.5,
+    ),
+    saturation=0.0,
+    is_negative=True,
+    is_monochrome=False,
+)
+
+
+DELTA_100 = FilmPreset(
+    brightness=-0.10,
+    contrast=-0.5,
+    is_negative=True,
+    is_monochrome=True,
 )

@@ -101,12 +101,11 @@ class Balancer(Layer, ABC):
 
         [image_axis, histogram_axis] = flattened_axes
 
-        image_axis.imshow(image)
+        if image.ndim == 2:
+            image_axis.imshow(image, cmap="gray")
 
-        for channel, color in enumerate(self._histogram_plot_colors):
             histogram, bins, cumulative = self._histogram(
                 image,
-                target_channel=channel,
                 return_cumulative=True,
                 hide_clipped_values=True,
                 normalize=True,
@@ -115,7 +114,7 @@ class Balancer(Layer, ABC):
             histogram_axis.plot(
                 bins[1:],
                 histogram,
-                color=color,
+                color="black",
                 **self._histogram_distribution_plot_kwargs,
             )
 
@@ -123,9 +122,35 @@ class Balancer(Layer, ABC):
                 histogram_axis.plot(
                     bins[:-1],
                     cumulative,
-                    color=color,
+                    color="black",
                     **self._histogram_cumulative_plot_kwargs,
                 )
+        else:
+            image_axis.imshow(image)
+
+            for channel, color in enumerate(self._histogram_plot_colors):
+                histogram, bins, cumulative = self._histogram(
+                    image,
+                    target_channel=channel,
+                    return_cumulative=True,
+                    hide_clipped_values=True,
+                    normalize=True,
+                )
+
+                histogram_axis.plot(
+                    bins[1:],
+                    histogram,
+                    color=color,
+                    **self._histogram_distribution_plot_kwargs,
+                )
+
+                if include_cumulative:
+                    histogram_axis.plot(
+                        bins[:-1],
+                        cumulative,
+                        color=color,
+                        **self._histogram_cumulative_plot_kwargs,
+                    )
 
         return figure
 
