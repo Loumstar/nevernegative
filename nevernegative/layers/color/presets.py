@@ -88,8 +88,8 @@ HANALOGITAL_FLOURITE = FilmPreset(
 
 
 DELTA_100 = FilmPreset(
-    brightness=-0.10,
-    contrast=-0.5,
+    brightness=-0.05,
+    contrast=-0.4,
     is_negative=True,
     is_monochrome=True,
 )
