@@ -93,3 +93,24 @@ DELTA_100 = FilmPreset(
     is_negative=True,
     is_monochrome=True,
 )
+
+
+ILFOCOLOR_400 = FilmPreset(
+    red=ChannelPreset(
+        bounds=(0.01, 0.99),
+        brightness=0.15,
+    ),
+    green=ChannelPreset(
+        bounds=(0.01, 0.99),
+        brightness=0,
+    ),
+    blue=ChannelPreset(
+        bounds=(0.01, 0.99),
+        brightness=0,
+        contrast=0,
+    ),
+    brightness=0,
+    saturation=0,
+    is_negative=True,
+    is_monochrome=False,
+)
