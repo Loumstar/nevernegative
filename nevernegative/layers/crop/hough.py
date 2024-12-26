@@ -158,6 +158,7 @@ class HoughCrop(Cropper):
             end_angle=self.end_angle,
             step=self.step,
             max_num_peaks=4,
+            snap_corners_to_edge_map=self.snap_to_edge_map,
         )
 
         self.plot(

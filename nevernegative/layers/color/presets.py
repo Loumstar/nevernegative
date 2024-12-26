@@ -67,6 +67,24 @@ COLOR_PLUS_200 = FilmPreset(
     is_monochrome=False,
 )
 
+COLOR_PLUS_200_ADJUSTED = FilmPreset(
+    red=ChannelPreset(
+        bounds=(0.03, 1.0),
+        brightness=0.1,
+    ),
+    green=ChannelPreset(
+        bounds=(0.03, 1),
+        brightness=0.05,
+    ),
+    blue=ChannelPreset(
+        bounds=(0.03, 1),
+        brightness=0.1,
+    ),
+    saturation=0.03,
+    is_negative=True,
+    is_monochrome=False,
+)
+
 HANALOGITAL_FLOURITE = FilmPreset(
     red=ChannelPreset(
         bounds=(0.03, 1.0),
