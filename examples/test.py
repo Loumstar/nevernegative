@@ -4,7 +4,7 @@ import skimage as ski
 from numpy.typing import NDArray
 
 from nevernegative.layers.color.histogram import HistogramBalancer
-from nevernegative.layers.color.presets import COLOR_PLUS_200_ADJUSTED
+from nevernegative.layers.color.presets import DELTA_100
 from nevernegative.layers.common.blur import Blur
 from nevernegative.layers.common.grey import Grey
 from nevernegative.layers.common.resize import Resize
@@ -43,19 +43,19 @@ scanner = SimpleScanner(
         offset=(5, 5),
     ),
     color_balancer=HistogramBalancer(
-        preset=COLOR_PLUS_200_ADJUSTED,
+        preset=DELTA_100,
         plot_path=Path("results/balancer"),
     ),
 )
 
 scanner.glob(
-    source="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/nikon/*45.NEF",
-    destination="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/nikon/results",
+    source="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/delta_3200_v2/*.NEF",
+    destination="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/delta_3200_v2/results",
     is_raw=True,
 )
 
 # scanner.file(
-#     source="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/nikon/IMG_5031.CR2",
-#     destination="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/nikon/results_2/",
+#     source="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/delta_3200_v2/IMG_5031.CR2",
+#     destination="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/delta_3200_v2/results_2/",
 #     is_raw=True,
 # )

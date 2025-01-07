@@ -1,4 +1,5 @@
 import glob
+import logging
 from pathlib import Path
 
 import rawpy
@@ -7,6 +8,8 @@ import tqdm
 from numpy.typing import NDArray
 
 from nevernegative.scanner.base import Scanner
+
+LOGGER = logging.getLogger(__name__)
 
 
 class SimpleScanner(Scanner):
@@ -74,4 +77,7 @@ class SimpleScanner(Scanner):
             raise RuntimeError("No images found.")
 
         for file in tqdm.tqdm(files, desc="Proccesing images"):
-            self.file(file, destination, is_raw=is_raw)
+            try:
+                self.file(file, destination, is_raw=is_raw)
+            except Exception:
+                LOGGER.exception(f"Failed to process {file}")
