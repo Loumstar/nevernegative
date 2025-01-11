@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Literal, Sequence
+from typing import Literal
 
 import numpy as np
 import skimage as ski
@@ -12,20 +12,20 @@ from nevernegative.layers.base import Layer
 from nevernegative.layers.chain import LayerChain
 from nevernegative.layers.common.edge import EdgeDetect
 from nevernegative.layers.common.grey import Grey
+from nevernegative.layers.common.resize import Resize
 from nevernegative.layers.common.threshold import Threshold
-from nevernegative.layers.dewarp.base import Dewarper
-from nevernegative.layers.typing import LayerCallable
 from nevernegative.layers.utils.decorators import save_figure
 from nevernegative.layers.utils.hough import HoughTransform
 
 
-class HoughDewarper(Dewarper):
+class ZeroShotBarrelDewarp(Layer):
     def __init__(
         self,
         num_points: int = 2,
         method: Literal["radial", "linear"] = "radial",
         *,
         k: int = 3,
+        resize: int = 800,
         edge_sigma: float = 1.0,
         edge_low_threshold: float | None = None,
         edge_high_threshold: float | None = None,
@@ -35,7 +35,6 @@ class HoughDewarper(Dewarper):
         end_angle: float = np.deg2rad(135),
         step: int = 360,
         lengthscale: Literal["x", "y", "xy"] = "x",
-        preprocessing_layers: Sequence[Layer | LayerCallable] | None = None,
         plot_path: Path | None = None,
         figure_size: tuple[int, int] = (15, 15),
     ) -> None:
@@ -53,9 +52,9 @@ class HoughDewarper(Dewarper):
         self.end_angle = end_angle
         self.step = step
 
-        self._preprocessing_layers = LayerChain(preprocessing_layers)
-        self._to_edge_map = LayerChain(
+        self.preprocess = LayerChain(
             (
+                Resize(height=resize),
                 Grey(),
                 Threshold(),
                 EdgeDetect(
@@ -191,10 +190,7 @@ class HoughDewarper(Dewarper):
         return ((normalised / (1 - multiplier)[:, None]) * lengthscale) + center
 
     def __call__(self, image: NDArray) -> NDArray:
-        preprocessed_image = self._preprocessing_layers(image)
-        self.plot("preprocessed.png", preprocessed_image)
-
-        edge_map = self._to_edge_map(preprocessed_image)
+        edge_map = self.preprocess(image)
         self.plot("edge_map.png", edge_map)
 
         hough_transform = HoughTransform(

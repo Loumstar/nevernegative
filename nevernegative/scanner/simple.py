@@ -2,7 +2,6 @@ import glob
 import logging
 from pathlib import Path
 
-import rawpy
 import skimage as ski
 import tqdm
 from numpy.typing import NDArray
@@ -13,20 +12,8 @@ LOGGER = logging.getLogger(__name__)
 
 
 class SimpleScanner(Scanner):
-    def _from_file(self, source: str | Path, *, is_raw: bool = False) -> NDArray:
-        if isinstance(source, str):
-            source = Path(source)
-
-        if is_raw:
-            with rawpy.imread(str(source)) as raw:
-                image = raw.postprocess().copy()
-        else:
-            image = ski.io.imread(source)
-
-        return ski.util.img_as_float64(image)
-
     def array(self, image: NDArray) -> NDArray:
-        for layer in (self.dewarper, self.cropper, self.color_balancer):
+        for layer in self.layers:
             if layer is None:
                 continue
 
@@ -69,7 +56,14 @@ class SimpleScanner(Scanner):
 
         return output
 
-    def glob(self, source: str, destination: str | Path, *, is_raw: bool = False) -> None:
+    def glob(
+        self,
+        source: str,
+        destination: str | Path,
+        *,
+        is_raw: bool = False,
+        raise_exceptions: bool = False,
+    ) -> None:
         files = glob.glob(source)
         files.sort()
 
@@ -79,5 +73,9 @@ class SimpleScanner(Scanner):
         for file in tqdm.tqdm(files, desc="Proccesing images"):
             try:
                 self.file(file, destination, is_raw=is_raw)
-            except Exception:
+
+            except Exception as e:
+                if raise_exceptions:
+                    raise e
+
                 LOGGER.exception(f"Failed to process {file}")

@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Literal, Sequence
+from typing import Literal
 
 import numpy as np
 import skimage as ski
@@ -7,13 +7,12 @@ from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
 from numpy.typing import NDArray
 
-from nevernegative.layers.base import Layer
 from nevernegative.layers.chain import LayerChain
 from nevernegative.layers.common.edge import EdgeDetect
 from nevernegative.layers.common.grey import Grey
+from nevernegative.layers.common.resize import Resize
 from nevernegative.layers.common.threshold import Threshold
 from nevernegative.layers.crop.base import Cropper
-from nevernegative.layers.typing import LayerCallable
 from nevernegative.layers.utils.decorators import save_figure
 from nevernegative.layers.utils.hough import HoughTransform
 
@@ -25,7 +24,7 @@ class HoughCrop(Cropper):
         peak_ratio: float = 0.2,
         min_distance: int = 30,
         snap_to_edge_map: bool = True,
-        preprocessing_layers: Sequence[Layer | LayerCallable] | None = None,
+        resize: int = 800,
         edge_sigma: float = 1.0,
         edge_low_threshold: float | None = None,
         edge_high_threshold: float | None = None,
@@ -46,9 +45,9 @@ class HoughCrop(Cropper):
 
         self.snap_to_edge_map = snap_to_edge_map
 
-        self.preprocessing_layers = LayerChain(preprocessing_layers)
-        self._to_edge_map = LayerChain(
+        self.preprocess = LayerChain(
             (
+                Resize(height=resize),
                 Grey(),
                 Threshold(),
                 EdgeDetect(
@@ -145,10 +144,7 @@ class HoughCrop(Cropper):
         return coordinates
 
     def __call__(self, image: NDArray) -> NDArray:
-        preprocessed_image = self.preprocessing_layers(image)
-        self.plot("preprocessed.png", preprocessed_image)
-
-        edge_map = self._to_edge_map(preprocessed_image)
+        edge_map = self.preprocess(image)
 
         hough_transform = HoughTransform(
             edge_map,

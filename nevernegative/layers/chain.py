@@ -7,9 +7,9 @@ from nevernegative.layers.typing import LayerCallable
 
 
 class LayerChain(Layer):
-    def __init__(self, layers: Sequence[Layer | LayerCallable] | None) -> None:
+    def __init__(self, layers: Sequence[Layer | LayerCallable | None]) -> None:
         super().__init__()
-        self.layers = layers
+        self.layers = [layer for layer in layers if layer is not None]
 
     def __call__(self, image: NDArray[Any]) -> NDArray[Any]:
         if self.layers is not None:

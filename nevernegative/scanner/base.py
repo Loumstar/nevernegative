@@ -1,24 +1,29 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import Sequence
 
+import rawpy
+import skimage as ski
 from numpy.typing import NDArray
 
-from nevernegative.layers.color.base import Balancer
-from nevernegative.layers.crop.base import Cropper
-from nevernegative.layers.dewarp.base import Dewarper
+from nevernegative.layers.typing import LayerCallable
 
 
 class Scanner(ABC):
-    def __init__(
-        self,
-        *,
-        dewarper: Dewarper | None = None,
-        cropper: Cropper | None = None,
-        color_balancer: Balancer | None = None,
-    ) -> None:
-        self.dewarper = dewarper
-        self.cropper = cropper
-        self.color_balancer = color_balancer
+    def __init__(self, layers: Sequence[LayerCallable]) -> None:
+        self.layers = layers
+
+    def _from_file(self, source: str | Path, *, is_raw: bool = False) -> NDArray:
+        if isinstance(source, str):
+            source = Path(source)
+
+        if is_raw:
+            with rawpy.imread(str(source)) as raw:
+                image = raw.postprocess().copy()
+        else:
+            image = ski.io.imread(source)
+
+        return ski.util.img_as_float64(image)
 
     @abstractmethod
     def file(
