@@ -11,6 +11,7 @@ class HoughTransform:
         image: NDArray[np.bool],
         *,
         snap_corners_to_edge_map: bool = True,
+        padding: float = 0.0,
         max_num_peaks: int | None = None,
         peak_ratio: float = 0.2,
         min_distance: int = 30,
@@ -22,6 +23,7 @@ class HoughTransform:
         self._image = image
 
         self.snap_corners_to_edge_map = snap_corners_to_edge_map
+        self.padding = padding
 
         self.peak_ratio = peak_ratio
         self.min_distance = min_distance
@@ -87,8 +89,19 @@ class HoughTransform:
 
         slopes = np.tan(angles + np.pi / 2)
 
-        x = np.cos(angles) * distances
-        y = np.sin(angles) * distances
+        x: NDArray = np.cos(angles) * distances
+        y: NDArray = np.sin(angles) * distances
+
+        center = utils.image.get_center(self._image, format="cartesian")
+
+        x[x < center[0]] -= self.padding * center[0]
+        x[x > center[0]] += self.padding * center[0]
+
+        y[y < center[1]] -= self.padding * center[1]
+        y[y > center[1]] += self.padding * center[1]
+
+        x = np.clip(x, 0, center[0] * 2)
+        y = np.clip(y, 0, center[1] * 2)
 
         self._lines = lines = np.stack([x, y, slopes], axis=-1)
 

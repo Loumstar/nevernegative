@@ -8,3 +8,5 @@ class Film(BaseModel):
 
     is_negative: bool
     is_colour: bool
+
+    pigment: tuple[int, int, int] | None = None

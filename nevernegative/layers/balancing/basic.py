@@ -28,7 +28,7 @@ class BasicBalance(Balancer):
 
         self.invert = invert
 
-        self.make_positive = Positive(film.is_negative)
+        self.make_positive = Positive(film.is_negative and invert)
         self.postprocess = LayerChain(
             (
                 Contrast(film.contrast),
@@ -41,9 +41,7 @@ class BasicBalance(Balancer):
         self.make_black_and_white = Grey()
 
     def __call__(self, image: NDArray) -> NDArray:
-        if self.invert:
-            positive = self.make_positive(image)
-
+        positive = self.make_positive(image)
         result = self.postprocess(positive)
 
         if not self.film.is_colour:

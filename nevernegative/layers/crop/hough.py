@@ -24,6 +24,7 @@ class HoughCrop(Cropper):
         peak_ratio: float = 0.2,
         min_distance: int = 30,
         snap_to_edge_map: bool = True,
+        padding: float = 0.0,
         resize: int = 800,
         edge_sigma: float = 1.0,
         edge_low_threshold: float | None = None,
@@ -44,6 +45,7 @@ class HoughCrop(Cropper):
         self.step = step
 
         self.snap_to_edge_map = snap_to_edge_map
+        self.padding = padding
 
         self.preprocess = LayerChain(
             (
@@ -155,6 +157,7 @@ class HoughCrop(Cropper):
             step=self.step,
             max_num_peaks=4,
             snap_corners_to_edge_map=self.snap_to_edge_map,
+            padding=self.padding,
         )
 
         self.plot(

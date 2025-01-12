@@ -108,7 +108,7 @@ class Balancer(Layer, ABC):
             channel_colors = self._color_channels
             cmap = self._color_cmap
 
-        image_axis.imshow(image, cmap=cmap)
+        image_axis.imshow(np.clip(image, 0, 1), cmap=cmap)
 
         for channel, color in channel_colors:
             histogram, bins, cumulative = self._histogram(
