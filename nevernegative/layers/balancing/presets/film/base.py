@@ -10,3 +10,4 @@ class Film(BaseModel):
     is_colour: bool
 
     pigment: tuple[int, int, int] | None = None
+    grey_channel: int | None = None

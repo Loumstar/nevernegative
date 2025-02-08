@@ -10,9 +10,10 @@ class ColourNegative(Film):
 
 COLOR_PLUS_200 = ColourNegative(brightness=(0.1, 0.05, 0.1), saturation=0.03)
 ULTRAMAX_400 = ColourNegative(
-    brightness=(0, -0.03, -0.1),
-    contrast=(0, 0, 0.4),
+    brightness=(0.05, -0.05, -0.17),
+    contrast=(0, 0, 0),
     pigment=(254, 135, 59),
+    saturation=-0.1,
 )
 
 HANALOGITAL_FLOURITE = ColourNegative(brightness=(-0.05, 0.05, -0.1), contrast=(0, 0, -0.5))

@@ -38,7 +38,7 @@ class BasicBalance(Balancer):
             )
         )
 
-        self.make_black_and_white = Grey()
+        self.make_black_and_white = Grey(film.grey_channel)
 
     def __call__(self, image: NDArray) -> NDArray:
         positive = self.make_positive(image)

@@ -8,4 +8,8 @@ class BlackAndWhiteNegative(Film):
     is_colour: Literal[False] = False
 
 
-DELTA_100 = BlackAndWhiteNegative(brightness=-0.05, contrast=-0.4)
+DELTA_100 = BlackAndWhiteNegative(
+    brightness=-0.05,
+    contrast=-0.4,
+    grey_channel=2,
+)
