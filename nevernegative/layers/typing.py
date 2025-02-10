@@ -1,5 +1,5 @@
 from typing import Callable, TypeAlias
 
-from numpy.typing import NDArray
+from torch import Tensor
 
-LayerCallable: TypeAlias = Callable[[NDArray], NDArray]
+LayerCallable: TypeAlias = Callable[[Tensor], Tensor]

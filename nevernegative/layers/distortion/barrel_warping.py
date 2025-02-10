@@ -5,7 +5,7 @@ import numpy as np
 import skimage as ski
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
-from numpy.typing import NDArray
+from torch import Tensor
 
 from nevernegative.layers import utils
 from nevernegative.layers.base import Layer
@@ -68,11 +68,11 @@ class ZeroShotBarrelDewarp(Layer):
     @save_figure
     def plot(
         self,
-        image: NDArray,
+        image: Tensor,
         *,
-        lines: NDArray | None = None,
-        undistorted_points: NDArray | None = None,
-        distorted_points: NDArray | None = None,
+        lines: Tensor | None = None,
+        undistorted_points: Tensor | None = None,
+        distorted_points: Tensor | None = None,
     ) -> Figure:
         figure, axis = plt.subplots()
 
@@ -100,7 +100,7 @@ class ZeroShotBarrelDewarp(Layer):
         return figure
 
     @save_figure
-    def plot_warping_contour(self, image: NDArray, k: NDArray) -> Figure:
+    def plot_warping_contour(self, image: Tensor, k: Tensor) -> Figure:
         figure, axis = plt.subplots()
 
         [cx, cy] = center = utils.image.get_center(image, format="cartesian")
@@ -121,7 +121,7 @@ class ZeroShotBarrelDewarp(Layer):
         return figure
 
     @save_figure
-    def plot_warping_multiplier(self, k: NDArray) -> Figure:
+    def plot_warping_multiplier(self, k: Tensor) -> Figure:
         figure, axis = plt.subplots()
 
         euclidean = np.linspace(0, 1, num=200) ** 2
@@ -135,7 +135,7 @@ class ZeroShotBarrelDewarp(Layer):
         return figure
 
     @save_figure
-    def plot_image_overlay(self, distorted: NDArray, undistorted: NDArray) -> Figure:
+    def plot_image_overlay(self, distorted: Tensor, undistorted: Tensor) -> Figure:
         figure, axis = plt.subplots()
 
         distorted_grey = ski.color.rgb2gray(distorted)
@@ -150,10 +150,10 @@ class ZeroShotBarrelDewarp(Layer):
 
     def _estimate_k(
         self,
-        undistorted_points: NDArray,
-        distorted_points: NDArray,
-        image_center: NDArray,
-    ) -> NDArray:
+        undistorted_points: Tensor,
+        distorted_points: Tensor,
+        image_center: Tensor,
+    ) -> Tensor:
         lengthscale = utils.image.get_lengthscale(self.lengthscale, image_center=image_center)
 
         vector = (undistorted_points - distorted_points) / lengthscale
@@ -169,12 +169,12 @@ class ZeroShotBarrelDewarp(Layer):
 
     def _inverse_map(
         self,
-        xy: NDArray,
+        xy: Tensor,
         *,
-        k: NDArray,
-        center: NDArray,
+        k: Tensor,
+        center: Tensor,
         invert: bool = False,
-    ) -> NDArray:
+    ) -> Tensor:
         lengthscale = utils.image.get_lengthscale(self.lengthscale, image_center=center)
 
         normalised = (xy - center) / lengthscale
@@ -189,7 +189,7 @@ class ZeroShotBarrelDewarp(Layer):
 
         return ((normalised / (1 - multiplier)[:, None]) * lengthscale) + center
 
-    def __call__(self, image: NDArray) -> NDArray:
+    def __call__(self, image: Tensor) -> Tensor:
         edge_map = self.preprocess(image)
         self.plot("edge_map.png", edge_map)
 

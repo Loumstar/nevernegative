@@ -3,7 +3,7 @@ from pathlib import Path
 
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
-from numpy.typing import NDArray
+from torch import Tensor
 
 from nevernegative.layers.utils.decorators import save_figure
 
@@ -18,7 +18,7 @@ class Layer(ABC):
         self.figure_size = figure_size
 
     @save_figure
-    def plot(self, image: NDArray) -> Figure:
+    def plot(self, image: Tensor) -> Figure:
         figure, axis = plt.subplots()
 
         axis.imshow(image)
@@ -27,7 +27,7 @@ class Layer(ABC):
         return figure
 
     @abstractmethod
-    def __call__(self, image: NDArray) -> NDArray:
+    def __call__(self, image: Tensor) -> Tensor:
         """Apply a transformation to the image.
 
         Args:

@@ -2,9 +2,9 @@ import glob
 import logging
 from pathlib import Path
 
-import skimage as ski
 import tqdm
-from numpy.typing import NDArray
+from torch import Tensor
+from torchvision.utils import save_image
 
 from nevernegative.scanner.base import Scanner
 
@@ -12,7 +12,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 class SimpleScanner(Scanner):
-    def array(self, image: NDArray) -> NDArray:
+    def array(self, image: Tensor) -> Tensor:
         for layer in self.layers:
             if layer is None:
                 continue
@@ -27,7 +27,7 @@ class SimpleScanner(Scanner):
         destination: str | Path,
         *,
         is_raw: bool = False,
-    ) -> NDArray:
+    ) -> Tensor:
         """Transform the image from a file.
 
         Args:
@@ -50,9 +50,8 @@ class SimpleScanner(Scanner):
             destination = Path(destination)
 
         destination.mkdir(parents=True, exist_ok=True)
-        result = ski.util.img_as_ubyte(output)
 
-        ski.io.imsave(destination / source.with_suffix(".png").name, result)
+        save_image(output, destination / source.with_suffix(".png").name)
 
         return output
 

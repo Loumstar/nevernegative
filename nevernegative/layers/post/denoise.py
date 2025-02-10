@@ -1,8 +1,8 @@
 from pathlib import Path
 
-import numpy as np
-from numpy.typing import NDArray
-from skimage.restoration import denoise_tv_chambolle, estimate_sigma
+import torch
+from skimage.restoration import denoise_tv_chambolle
+from torch import Tensor
 
 from nevernegative.layers.base import Layer
 
@@ -19,19 +19,20 @@ class DenoiseChannels(Layer):
 
         self.weight = weight if isinstance(weight, tuple) else (weight, weight, weight)
 
-    def __call__(self, image: NDArray) -> NDArray:
-        denoised = (image.copy() * 2) - 1
+    def __call__(self, image: Tensor) -> Tensor:
+        denoised = (image * 2) - 1
 
         self.plot("original.png", image)
 
-        print(estimate_sigma(image, channel_axis=-1))
-
         for channel, weight in enumerate(self.weight):
-            if weight > 0:
-                denoised[..., channel] = denoise_tv_chambolle(denoised[..., channel], weight=weight)
+            if weight == 0:
+                continue
 
-        result = np.clip((denoised + 1) / 2, 0, 1)
+            result = denoise_tv_chambolle(denoised[..., channel].cpu().numpy(), weight=weight)
+            denoised[..., channel] = torch.tensor(result, dtype=denoised.dtype)
 
-        self.plot("denoised.png", result)
+        denoised.clamp_(0, 1)
 
-        return result
+        self.plot("denoised.png", denoised)
+
+        return denoised

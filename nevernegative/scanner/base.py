@@ -4,7 +4,8 @@ from typing import Sequence
 
 import rawpy
 import skimage as ski
-from numpy.typing import NDArray
+import torch
+from torch import Tensor
 
 from nevernegative.layers.typing import LayerCallable
 
@@ -13,7 +14,7 @@ class Scanner(ABC):
     def __init__(self, layers: Sequence[LayerCallable]) -> None:
         self.layers = layers
 
-    def _from_file(self, source: str | Path, *, is_raw: bool = False) -> NDArray:
+    def _from_file(self, source: str | Path, *, is_raw: bool = False) -> Tensor:
         if isinstance(source, str):
             source = Path(source)
 
@@ -23,7 +24,7 @@ class Scanner(ABC):
         else:
             image = ski.io.imread(source)
 
-        return ski.util.img_as_float64(image)
+        return torch.tensor(image, dtype=torch.float64)
 
     @abstractmethod
     def file(
@@ -32,7 +33,7 @@ class Scanner(ABC):
         destination: str | Path,
         *,
         is_raw: bool = False,
-    ) -> NDArray:
+    ) -> Tensor:
         """Transform the image from a file.
 
         Args:
@@ -43,19 +44,19 @@ class Scanner(ABC):
             target_layer (str | int | None, optional): _description_. Defaults to None.
 
         Returns:
-            NDArray[Any] | None: _description_
+            Tensor[Any] | None: _description_
         """
 
     @abstractmethod
     def array(
         self,
-        image: NDArray,
-    ) -> NDArray:
+        image: Tensor,
+    ) -> Tensor:
         """Transform the image from a numpy array.
 
         Args:
-            image (NDArray): _description_
+            image (Tensor): _description_
 
         Returns:
-            NDArray: _description_
+            Tensor: _description_
         """

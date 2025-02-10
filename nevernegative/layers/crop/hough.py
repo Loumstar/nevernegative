@@ -5,7 +5,7 @@ import numpy as np
 import skimage as ski
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
-from numpy.typing import NDArray
+from torch import Tensor
 
 from nevernegative.layers.chain import LayerChain
 from nevernegative.layers.common.edge import EdgeDetect
@@ -65,10 +65,10 @@ class HoughCrop(Cropper):
     @save_figure
     def plot(
         self,
-        image: NDArray,
+        image: Tensor,
         *,
-        lines: NDArray | None = None,
-        points: NDArray | None = None,
+        lines: Tensor | None = None,
+        points: Tensor | None = None,
     ) -> Figure:
         figure, axis = plt.subplots()
 
@@ -84,31 +84,31 @@ class HoughCrop(Cropper):
 
         return figure
 
-    def _image_corners(self, image: NDArray) -> NDArray[np.intp]:
+    def _image_corners(self, image: Tensor) -> Tensor[np.intp]:
         y, x, *_ = image.shape
         return np.array([(0, 0), (x, 0), (0, y), (x, y)])
 
     @staticmethod
-    def _crop_shape(corners: NDArray) -> tuple[int, int]:
+    def _crop_shape(corners: Tensor) -> tuple[int, int]:
         [x, y] = np.max(corners, axis=0) - np.min(corners, axis=0)
         return int(y), int(x)
 
     @staticmethod
     def _image_scale(
-        input: NDArray,
-        output: NDArray,
-    ) -> NDArray:
+        input: Tensor,
+        output: Tensor,
+    ) -> Tensor:
         input_height, input_width, *_ = input.shape
         output_height, output_width, *_ = output.shape
 
         return np.array([output_height / input_height, output_width / input_width])
 
     @staticmethod
-    def _sort_coordinates(coordinates: NDArray) -> NDArray:
+    def _sort_coordinates(coordinates: Tensor) -> Tensor:
         if coordinates.shape[0] != 4:
             raise ValueError()
 
-        center: NDArray = coordinates.mean(axis=0)
+        center: Tensor = coordinates.mean(axis=0)
         vectors = coordinates - center
 
         angles = np.arctan2(*vectors.T)
@@ -118,10 +118,10 @@ class HoughCrop(Cropper):
 
     def _get_image_center(
         self,
-        image: NDArray,
+        image: Tensor,
         *,
         format: Literal["cartesian", "image"] = "cartesian",
-    ) -> NDArray:
+    ) -> Tensor:
         center = np.array(image.shape[:2]) / 2
 
         if format == "cartesian":
@@ -129,7 +129,7 @@ class HoughCrop(Cropper):
 
         return center
 
-    def _apply_offset(self, coordinates: NDArray, image: NDArray) -> NDArray:
+    def _apply_offset(self, coordinates: Tensor, image: Tensor) -> Tensor:
         cx, cy = self._get_image_center(image, format="cartesian")
 
         if isinstance(self.offset, tuple):
@@ -145,7 +145,7 @@ class HoughCrop(Cropper):
 
         return coordinates
 
-    def __call__(self, image: NDArray) -> NDArray:
+    def __call__(self, image: Tensor) -> Tensor:
         edge_map = self.preprocess(image)
 
         hough_transform = HoughTransform(
