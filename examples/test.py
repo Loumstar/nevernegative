@@ -4,9 +4,10 @@ from typing import Callable
 import skimage as ski
 from numpy.typing import NDArray
 
-from nevernegative.layers.balancing.basic import BasicBalance
 from nevernegative.layers.balancing.histogram_scaling import HistogramScaling
 from nevernegative.layers.balancing.presets.film.bw import DELTA_100
+from nevernegative.layers.common.grey import Grey
+from nevernegative.layers.common.positive import Positive
 from nevernegative.layers.common.temperature import AdjustTemperature
 from nevernegative.scanner.simple import SimpleScanner
 
@@ -39,25 +40,27 @@ scanner = SimpleScanner(
         #     plot_path=Path("results/cropper"),
         #     # offset=(5, 5),
         # ),
-        AdjustTemperature(temperature=5600, plot_path=Path("results/temperature")),
+        AdjustTemperature(temperature=5600, plot_path=Path("results/soho/temperature")),
         # PigmentCorrection(film=ULTRAMAX_400, plot_path=Path("results/pigment")),
+        Positive(is_negative=True),
         HistogramScaling(
             bounds=(0.01, 0.99),
             invert=DELTA_100.is_negative,
-            clip=False,
-            plot_path=Path("results/histogram_scaler"),
+            clip=True,
+            plot_path=Path("results/soho/histogram_scaler"),
         ),
-        BasicBalance(
-            film=DELTA_100,
-            invert=False,
-            plot_path=Path("results/basic_balance"),
-        ),
+        Grey(channel=2),
+        # BasicBalance(
+        #     film=DELTA_100,
+        #     invert=False,
+        #     plot_path=Path("results/basic_balance"),
+        # ),
         # DenoiseChannels(weight=(0, 0, 0.1), plot_path=Path("results/denoise")),
     ]
 )
 
 scanner.glob(
-    source="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/delta_100/batch_2/*.NEF",
-    destination="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/delta_100/results",
+    source="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/Soho/*.NEF",
+    destination="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/Soho/results",
     is_raw=True,
 )
