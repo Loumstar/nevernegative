@@ -1,10 +1,13 @@
 import skimage as ski
-from numpy.typing import NDArray
+import torch
+from torch import Tensor
 
 from nevernegative.layers.base import Layer
 
 
 class EdgeDetect(Layer):
+    plotting_name = "edge_detect"
+
     def __init__(
         self,
         *,
@@ -18,10 +21,12 @@ class EdgeDetect(Layer):
         self.low_threshold = low_threshold
         self.high_threshold = high_threshold
 
-    def __call__(self, image: NDArray) -> NDArray:
-        return ski.feature.canny(
-            image,
+    def forward(self, image: Tensor) -> Tensor:
+        edge = ski.feature.canny(
+            image.squeeze().cpu().numpy(),
             sigma=self.sigma,
             low_threshold=self.low_threshold,
             high_threshold=self.high_threshold,
         )
+
+        return torch.tensor(edge, dtype=torch.float32, device=image.device).unsqueeze(-3)

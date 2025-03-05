@@ -1,10 +1,14 @@
-from pathlib import Path
+from typing import Literal
 
 import numpy as np
-from numpy.typing import NDArray
+import skimage as ski
+import torch
+import torchvision.transforms.functional as F
 from scipy.interpolate import CubicSpline
+from torch import Tensor
 
 from nevernegative.layers.balancing.base import Balancer
+from nevernegative.utils.brightness import compute_pixel_brightness
 
 KELVIN_TABLE: dict[int, tuple[int, int, int]] = {
     1000: (255, 56, 0),
@@ -121,21 +125,24 @@ KELVIN_TABLE: dict[int, tuple[int, int, int]] = {
 }
 
 
-class AdjustTemperature(Balancer):
+class Temperature(Balancer):
+    plotting_name = "temperature"
+
     def __init__(
         self,
         temperature: int = 5600,
         *,
+        mode: Literal["add", "remove"] = "remove",
         table: dict[int, tuple[int, int, int]] | None = None,
         eps: float = 1e-6,
-        plot_path: Path | None = None,
-        figure_size: tuple[int, int] = (15, 15),
     ) -> None:
-        super().__init__(plot_path=plot_path, figure_size=figure_size)
+        super().__init__()
 
         table = table or KELVIN_TABLE
 
         self.temperature = temperature
+        self.mode: Literal["add", "remove"] = mode
+
         self.eps = eps
 
         self.kelvin = np.array(list(table.keys()))
@@ -145,26 +152,42 @@ class AdjustTemperature(Balancer):
         green = CubicSpline(self.kelvin, self.rgb[:, 1])([self.temperature])
         blue = CubicSpline(self.kelvin, self.rgb[:, 2])([self.temperature])
 
-        self.white = np.squeeze([red, green, blue])
+        white = np.array([red, green, blue]).squeeze()
+
+        self.white = torch.tensor(white, dtype=torch.float32).unsqueeze(-1).unsqueeze(-1)
         self.eps = eps
 
-    # @save_figure
-    # def plot_kelvin_scale(self, image: NDArray, *, points: NDArray | None = None) -> Figure:
-    #     figure, axis = plt.subplots()
-    #     axis.imshow(image)
+        self.brightness_factor = compute_pixel_brightness(*white.tolist())
 
-    #     if points is not None:
-    #         axis.scatter(*points.T, color="green")
+    @classmethod
+    def infer_temperature(
+        cls,
+        white: tuple[int, int, int],
+        *,
+        table: dict[int, tuple[int, int, int]] | None = None,
+    ) -> float:
+        table = table or KELVIN_TABLE
 
-    #     axis.axis("off")
+        white_hsv = ski.color.rgb2hsv(np.array([[white]]))
+        white_hsv[..., -1] = 1
 
-    #     return figure
+        max_white = (ski.color.hsv2rgb(white_hsv).squeeze() * 255).astype(np.float64)
+        temperatures, pigments = zip(*table.items())
 
-    def __call__(self, image: NDArray) -> NDArray:
-        self.plot_balancing("original.png", image)
+        k = np.array(temperatures)
+        rgb = np.array(pigments).astype(np.float64)
 
-        balanced = image / (self.white + self.eps)
+        white_vectors = rgb - max_white
+        d = np.linalg.norm(white_vectors, axis=1)
 
-        self.plot_balancing("balanced.png", balanced)
+        [first, second, *_] = np.argsort(d)
 
-        return balanced
+        return ((k[first] * d[first]) + (k[second] * d[second])) / (d[first] + d[second])
+
+    def forward(self, image: Tensor) -> Tensor:
+        if self.mode == "remove":
+            reduced_brightness = F.adjust_brightness(image, self.brightness_factor)
+            return reduced_brightness / (self.white.to(image.device))
+
+        reduced_brightness = F.adjust_brightness(image, 1 / self.brightness_factor)
+        return reduced_brightness * (self.white.to(image.device))

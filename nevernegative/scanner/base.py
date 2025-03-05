@@ -7,13 +7,15 @@ import skimage as ski
 import torch
 from torch import Tensor
 
-from nevernegative.layers.typing import LayerCallable
+from nevernegative.layers.base import Layer
 
 
 class Scanner(ABC):
-    def __init__(self, layers: Sequence[LayerCallable]) -> None:
+    def __init__(self, layers: Sequence[Layer], device: str | torch.device = "cpu") -> None:
         self.layers = layers
+        self.device = torch.device(device)
 
+    # @profile
     def _from_file(self, source: str | Path, *, is_raw: bool = False) -> Tensor:
         if isinstance(source, str):
             source = Path(source)
@@ -24,13 +26,15 @@ class Scanner(ABC):
         else:
             image = ski.io.imread(source)
 
-        return torch.tensor(image, dtype=torch.float64)
+        image = ski.util.img_as_float32(image)
+
+        return torch.tensor(image, dtype=torch.float32, device=self.device).permute(2, 0, 1)
 
     @abstractmethod
     def file(
         self,
-        source: str | Path,
-        destination: str | Path,
+        source: Path,
+        destination: Path,
         *,
         is_raw: bool = False,
     ) -> Tensor:

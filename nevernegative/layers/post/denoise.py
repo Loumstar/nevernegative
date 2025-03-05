@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import torch
 from skimage.restoration import denoise_tv_chambolle
 from torch import Tensor
@@ -11,11 +9,8 @@ class DenoiseChannels(Layer):
     def __init__(
         self,
         weight: float | tuple[float, float, float],
-        *,
-        plot_path: Path | None = None,
-        figure_size: tuple[int, int] = (15, 15),
     ) -> None:
-        super().__init__(plot_path, figure_size)
+        super().__init__()
 
         self.weight = weight if isinstance(weight, tuple) else (weight, weight, weight)
 

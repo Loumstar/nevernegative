@@ -8,14 +8,14 @@ from matplotlib.figure import Figure
 from torch import Tensor
 
 from nevernegative.layers import utils
+from nevernegative.layers.balancing.grey import Grey
 from nevernegative.layers.base import Layer
 from nevernegative.layers.chain import LayerChain
-from nevernegative.layers.common.edge import EdgeDetect
-from nevernegative.layers.common.grey import Grey
-from nevernegative.layers.common.resize import Resize
-from nevernegative.layers.common.threshold import Threshold
-from nevernegative.layers.utils.decorators import save_figure
-from nevernegative.layers.utils.hough import HoughTransform
+from nevernegative.layers.utils.edge import EdgeDetect
+from nevernegative.layers.utils.resize import Resize
+from nevernegative.layers.utils.threshold import Threshold
+from nevernegative.utils.decorators import save_figure
+from nevernegative.utils.geometry.hough import HoughTransform
 
 
 class ZeroShotBarrelDewarp(Layer):

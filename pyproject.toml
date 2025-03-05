@@ -25,6 +25,12 @@ ruff = "^0.6.4"
 mypy = "^1.11.2"
 pytest = "^8.3.2"
 types-tqdm = "^4.66.0.20240417"
+line-profiler = "^4.2.0"
+
+
+[tool.poetry.group.notebook.dependencies]
+ipykernel = "^6.29.5"
+jupyter = "^1.1.1"
 
 [build-system]
 requires = ["poetry-core"]
@@ -34,5 +40,5 @@ build-backend = "poetry.core.masonry.api"
 plugins = "numpy.typing.mypy_plugin"
 
 [[tool.mypy.overrides]]
-module = ["rawpy", "scipy.*"]
+module = ["rawpy", "scipy.*", "torchvision.*"]
 ignore_missing_imports = true

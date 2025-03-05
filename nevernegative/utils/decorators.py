@@ -17,15 +17,15 @@ def save_figure(
     @functools.wraps(f)
     def wrapper(self: LayerT, name: str, *args: P.args, **kwargs: P.kwargs) -> None:
         if self.plot_path is None:
-            return
+            raise RuntimeError()
 
         figure = f(self, *args, **kwargs)
-        path = self.plot_path / name
 
-        path.parent.mkdir(parents=True, exist_ok=True)
-        figure.set_size_inches(self.figure_size)
+        if self.figure_size is not None:
+            figure.set_size_inches(self.figure_size)
 
-        figure.savefig(path)
+        self.plot_path.mkdir(parents=True, exist_ok=True)
+        figure.savefig(self.plot_path / name)
 
         plt.close()
 
