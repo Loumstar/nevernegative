@@ -16,12 +16,21 @@ numpy = "^2.1.1"
 pydantic = "^2.9.1"
 scipy = "^1.14.1"
 tqdm = "^4.66.5"
+pywavelets = "^1.8.0"
+torch = "^2.6.0"
+torchvision = "^0.21.0"
 
 [tool.poetry.group.dev.dependencies]
 ruff = "^0.6.4"
 mypy = "^1.11.2"
 pytest = "^8.3.2"
 types-tqdm = "^4.66.0.20240417"
+line-profiler = "^4.2.0"
+
+
+[tool.poetry.group.notebook.dependencies]
+ipykernel = "^6.29.5"
+jupyter = "^1.1.1"
 
 [build-system]
 requires = ["poetry-core"]
@@ -31,5 +40,5 @@ build-backend = "poetry.core.masonry.api"
 plugins = "numpy.typing.mypy_plugin"
 
 [[tool.mypy.overrides]]
-module = ["rawpy", "scipy"]
+module = ["rawpy", "scipy.*", "torchvision.*"]
 ignore_missing_imports = true

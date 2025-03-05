@@ -1,61 +1,33 @@
 from pathlib import Path
 
-import skimage as ski
-from numpy.typing import NDArray
-
-from nevernegative.layers.color.histogram import HistogramBalancer
-from nevernegative.layers.color.presets import COLOR_PLUS_200_ADJUSTED
-from nevernegative.layers.common.blur import Blur
-from nevernegative.layers.common.grey import Grey
-from nevernegative.layers.common.resize import Resize
-from nevernegative.layers.crop.hough import HoughCrop
+from nevernegative.layers.balancing.brightness import Brightness
+from nevernegative.layers.balancing.contrast import Contrast
+from nevernegative.layers.balancing.invert import Invert
+from nevernegative.layers.balancing.pigment import RemoveEmulsionPigment
+from nevernegative.layers.balancing.saturation import Saturation
+from nevernegative.layers.balancing.temperature import Temperature
 from nevernegative.scanner.simple import SimpleScanner
 
-
-def rotate_180(image: NDArray) -> NDArray:
-    return ski.transform.rotate(image, angle=180)
-
-
 scanner = SimpleScanner(
-    # dewarper=HoughDewarper(
-    #     num_points=100,
-    #     method="linear",
-    #     lengthscale="x",
-    #     k=2,
-    #     preprocessing_layers=[
-    #         rotate_180,
-    #         Resize(height=800),
-    #         Grey(),
-    #         Blur(sigma=(3, 3)),
-    #     ],
-    #     plot_path=Path("results/dewarper"),
-    # ),
-    cropper=HoughCrop(
-        min_distance=30,
-        peak_ratio=0.2,
-        snap_to_edge_map=False,
-        preprocessing_layers=[
-            Resize(height=800),
-            Grey(),
-            Blur(sigma=(2, 2)),
-        ],
-        plot_path=Path("results/cropper"),
-        offset=(5, 5),
-    ),
-    color_balancer=HistogramBalancer(
-        preset=COLOR_PLUS_200_ADJUSTED,
-        plot_path=Path("results/balancer"),
-    ),
+    device="mps",
+    layers=[
+        Temperature(temperature=5200),
+        RemoveEmulsionPigment(pigment="COLOR_PLUS_200"),
+        Invert(),
+        Brightness(0.78, channel=0),
+        Brightness(0.6, channel=1),
+        Brightness(0.5, channel=2),
+        Contrast(2.5),
+        Brightness(1.0),
+        Saturation(1),
+    ],
 )
+
+image_folder = "/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/Brighton"
+batch_name = "results/notebook"
 
 scanner.glob(
-    source="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/nikon/*45.NEF",
-    destination="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/nikon/results",
+    source=(Path(image_folder) / "*.NEF").as_posix(),
+    destination=Path(image_folder) / batch_name,
     is_raw=True,
 )
-
-# scanner.file(
-#     source="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/nikon/IMG_5031.CR2",
-#     destination="/Users/louismanestar/Documents/Projects/Film Scanner/nevernegative/images/nikon/results_2/",
-#     is_raw=True,
-# )

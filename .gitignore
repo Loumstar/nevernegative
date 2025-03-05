@@ -4,5 +4,7 @@ __pycache__
 .mypy_cache
 .venv
 
-images
-results
+*.NEF
+*.png
+*.RAF
+*.CR2

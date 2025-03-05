@@ -1,33 +1,43 @@
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import Sequence
 
-from numpy.typing import NDArray
+import rawpy
+import skimage as ski
+import torch
+from torch import Tensor
 
-from nevernegative.layers.color.base import Balancer
-from nevernegative.layers.crop.base import Cropper
-from nevernegative.layers.dewarp.base import Dewarper
+from nevernegative.layers.base import Layer
 
 
 class Scanner(ABC):
-    def __init__(
-        self,
-        *,
-        dewarper: Dewarper | None = None,
-        cropper: Cropper | None = None,
-        color_balancer: Balancer | None = None,
-    ) -> None:
-        self.dewarper = dewarper
-        self.cropper = cropper
-        self.color_balancer = color_balancer
+    def __init__(self, layers: Sequence[Layer], device: str | torch.device = "cpu") -> None:
+        self.layers = layers
+        self.device = torch.device(device)
+
+    # @profile
+    def _from_file(self, source: str | Path, *, is_raw: bool = False) -> Tensor:
+        if isinstance(source, str):
+            source = Path(source)
+
+        if is_raw:
+            with rawpy.imread(str(source)) as raw:
+                image = raw.postprocess().copy()
+        else:
+            image = ski.io.imread(source)
+
+        image = ski.util.img_as_float32(image)
+
+        return torch.tensor(image, dtype=torch.float32, device=self.device).permute(2, 0, 1)
 
     @abstractmethod
     def file(
         self,
-        source: str | Path,
-        destination: str | Path,
+        source: Path,
+        destination: Path,
         *,
         is_raw: bool = False,
-    ) -> NDArray:
+    ) -> Tensor:
         """Transform the image from a file.
 
         Args:
@@ -38,19 +48,19 @@ class Scanner(ABC):
             target_layer (str | int | None, optional): _description_. Defaults to None.
 
         Returns:
-            NDArray[Any] | None: _description_
+            Tensor[Any] | None: _description_
         """
 
     @abstractmethod
     def array(
         self,
-        image: NDArray,
-    ) -> NDArray:
+        image: Tensor,
+    ) -> Tensor:
         """Transform the image from a numpy array.
 
         Args:
-            image (NDArray): _description_
+            image (Tensor): _description_
 
         Returns:
-            NDArray: _description_
+            Tensor: _description_
         """

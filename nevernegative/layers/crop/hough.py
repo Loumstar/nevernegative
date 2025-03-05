@@ -1,194 +1,218 @@
-from pathlib import Path
-from typing import Literal, Sequence
+from math import ceil, sqrt
+from typing import Sequence
 
 import numpy as np
 import skimage as ski
+import torch
+import torchvision.transforms.functional as F
 from matplotlib import pyplot as plt
 from matplotlib.figure import Figure
-from numpy.typing import NDArray
+from torch import Tensor
+from typing_extensions import deprecated
 
+from nevernegative.layers.balancing.grey import Grey
 from nevernegative.layers.base import Layer
-from nevernegative.layers.chain import LayerChain
-from nevernegative.layers.common.edge import EdgeDetect
-from nevernegative.layers.common.grey import Grey
-from nevernegative.layers.common.threshold import Threshold
 from nevernegative.layers.crop.base import Cropper
-from nevernegative.layers.typing import LayerCallable
-from nevernegative.layers.utils.decorators import save_figure
-from nevernegative.layers.utils.hough import HoughTransform
+from nevernegative.layers.utils.blur import Blur
+from nevernegative.layers.utils.chain import Chain
+from nevernegative.layers.utils.edge import EdgeDetect
+from nevernegative.layers.utils.resize import Resize
+from nevernegative.layers.utils.threshold import Threshold
+from nevernegative.utils.decorators import save_figure
 
 
 class HoughCrop(Cropper):
+    plotting_name = "crop"
+
+    default_preprocessing_layers: Sequence[Layer] = (
+        Resize(height=800),
+        Grey(),
+        Blur((5, 5)),
+        Threshold(),
+        EdgeDetect(sigma=1),
+    )
+
     def __init__(
         self,
+        padding: float | tuple[float, float] = 0,
+        snap: bool = True,
         *,
-        peak_ratio: float = 0.2,
-        min_distance: int = 30,
-        snap_to_edge_map: bool = True,
-        preprocessing_layers: Sequence[Layer | LayerCallable] | None = None,
-        edge_sigma: float = 1.0,
-        edge_low_threshold: float | None = None,
-        edge_high_threshold: float | None = None,
-        start_angle: float = np.deg2rad(-45),
-        end_angle: float = np.deg2rad(135),
-        step: int = 360,
-        offset: int | tuple[int, int] = 15,
-        plot_path: Path | None = None,
-        figure_size: tuple[int, int] = (15, 15),
+        preprocessing_layers: Sequence[Layer] | None = None,
     ) -> None:
-        super().__init__(plot_path, figure_size)
+        super().__init__()
 
-        self.peak_ratio = peak_ratio
-        self.min_distance = min_distance
-        self.start_angle = start_angle
-        self.end_angle = end_angle
-        self.step = step
+        self.snap = snap
+        self.padding = torch.tensor([padding], dtype=torch.float32).squeeze()
 
-        self.snap_to_edge_map = snap_to_edge_map
+        if preprocessing_layers is None:
+            preprocessing_layers = self.default_preprocessing_layers
 
-        self.preprocessing_layers = LayerChain(preprocessing_layers)
-        self._to_edge_map = LayerChain(
-            (
-                Grey(),
-                Threshold(),
-                EdgeDetect(
-                    sigma=edge_sigma,
-                    low_threshold=edge_low_threshold,
-                    high_threshold=edge_high_threshold,
-                ),
-            )
-        )
-
-        self.offset = offset
+        self.preprocess = Chain(preprocessing_layers)
 
     @save_figure
     def plot(
         self,
-        image: NDArray,
+        image: Tensor,
         *,
-        lines: NDArray | None = None,
-        points: NDArray | None = None,
+        lines: Tensor | None = None,
+        points: Tensor | None = None,
     ) -> Figure:
         figure, axis = plt.subplots()
 
+        self._add_image_to_axis(axis, image)
+
         if lines is not None:
-            for [x, y, slope] in lines:
+            for [x, y, slope] in lines.tolist():
                 axis.axline((x, y), slope=slope, color="red")
 
         if points is not None:
-            axis.scatter(*points.T, color="green")
-
-        axis.imshow(image)
-        axis.axis("off")
+            axis.scatter(*points.T.tolist(), color="green")
 
         return figure
 
-    def _image_corners(self, image: NDArray) -> NDArray[np.intp]:
-        y, x, *_ = image.shape
-        return np.array([(0, 0), (x, 0), (0, y), (x, y)])
+    @deprecated("Using skimage instead.")
+    def hough_transform(self, image: Tensor) -> tuple[Tensor, Tensor, Tensor]:
+        theta = torch.linspace(np.deg2rad(-45), np.deg2rad(135), steps=180, dtype=torch.float64)
 
-    @staticmethod
-    def _crop_shape(corners: NDArray) -> tuple[int, int]:
-        [x, y] = np.max(corners, axis=0) - np.min(corners, axis=0)
-        return int(y), int(x)
+        offset = ceil(sqrt(image.shape[-2] ** 2 + image.shape[-1] ** 2))
+        max_distance = 2 * offset + 1
 
-    @staticmethod
-    def _image_scale(
-        input: NDArray,
-        output: NDArray,
-    ) -> NDArray:
-        input_height, input_width, *_ = input.shape
-        output_height, output_width, *_ = output.shape
+        pixels = torch.nonzero(image).unsqueeze(-2)  # n x 1 x 2
 
-        return np.array([output_height / input_height, output_width / input_width])
+        indices = pixels[..., 0] * theta.cos() + pixels[..., 1] * theta.sin()
+        indices = (indices.round() + offset).to(torch.int64)
 
-    @staticmethod
-    def _sort_coordinates(coordinates: NDArray) -> NDArray:
-        if coordinates.shape[0] != 4:
-            raise ValueError()
+        accumulator_indices, accumulator_counts = indices.unique(False, True, dim=0)
 
-        center: NDArray = coordinates.mean(axis=0)
-        vectors = coordinates - center
+        accumulator = torch.zeros((max_distance, theta.shape[0]))
+        accumulator[accumulator_indices] = accumulator_counts
 
-        angles = np.arctan2(*vectors.T)
-        order = np.argsort(angles)
+        bins = torch.linspace(-offset, offset, steps=max_distance)
 
-        return coordinates[order]
+        return accumulator, bins, theta
 
-    def _get_image_center(
-        self,
-        image: NDArray,
-        *,
-        format: Literal["cartesian", "image"] = "cartesian",
-    ) -> NDArray:
-        center = np.array(image.shape[:2]) / 2
-
-        if format == "cartesian":
-            center = np.flip(center)
-
-        return center
-
-    def _apply_offset(self, coordinates: NDArray, image: NDArray) -> NDArray:
-        cx, cy = self._get_image_center(image, format="cartesian")
-
-        if isinstance(self.offset, tuple):
-            dx, dy = self.offset
-        else:
-            dx = dy = self.offset
-
-        coordinates[coordinates[:, 0] < cx, 0] += dx
-        coordinates[coordinates[:, 0] > cx, 0] -= dx
-
-        coordinates[coordinates[:, 1] < cy, 1] += dy
-        coordinates[coordinates[:, 1] > cy, 1] -= dy
-
-        return coordinates
-
-    def __call__(self, image: NDArray) -> NDArray:
-        preprocessed_image = self.preprocessing_layers(image)
-        self.plot("preprocessed.png", preprocessed_image)
-
-        edge_map = self._to_edge_map(preprocessed_image)
-
-        hough_transform = HoughTransform(
-            edge_map,
-            peak_ratio=self.peak_ratio,
-            min_distance=self.min_distance,
-            start_angle=self.start_angle,
-            end_angle=self.end_angle,
-            step=self.step,
-            max_num_peaks=4,
-            snap_corners_to_edge_map=self.snap_to_edge_map,
+    def peaks(self, image: Tensor) -> tuple[Tensor, Tensor]:
+        accumulator, angles, distances = ski.transform.hough_line(
+            image.squeeze().cpu().numpy(),
+            theta=np.linspace(
+                start=np.deg2rad(-45),
+                stop=np.deg2rad(135),
+                num=180,
+                endpoint=False,
+            ),
         )
 
-        self.plot(
-            "hough.png",
-            edge_map,
-            lines=hough_transform.lines,
-            points=hough_transform.corners,
+        accumulator, angles, distances = ski.transform.hough_line_peaks(
+            accumulator,
+            angles,
+            distances,
+            threshold=0.2 * accumulator.max(),
+            num_peaks=4,
+            min_distance=50,
         )
 
-        corners = self._sort_coordinates(hough_transform.corners).astype(np.float64)
-        corners = self._apply_offset(corners, edge_map)
-
-        corners *= self._image_scale(edge_map, image)
-
-        image_corners = self._image_corners(image)
-        image_corners = self._sort_coordinates(image_corners)
-
-        perspective_transform = ski.transform.ProjectiveTransform()
-
-        is_success = perspective_transform.estimate(
-            src=corners.astype(np.float64),
-            dst=image_corners.astype(np.float64),
+        return (
+            torch.tensor(
+                angles,
+                dtype=torch.float32,
+                device=image.device,
+            ),
+            torch.tensor(
+                distances,
+                dtype=torch.float32,
+                device=image.device,
+            ),
         )
 
-        if not is_success:
-            raise RuntimeError()
+    def intersect(self, verticals: Tensor, horizontals: Tensor, *, eps: float = 1e-9) -> Tensor:
+        xv, yv, sv = verticals.unbind(-1)
+        xh, yh, sh = horizontals.unbind(-1)
 
-        warped = ski.transform.warp(image, perspective_transform.inverse)
-        self.plot("transformed.png", warped)
+        a = yv - (sv * xv)
+        b = yh - (sh * xh)
 
-        shape = self._crop_shape(corners)
+        x = (b - a) / ((sv - sh) + eps)
 
-        return ski.transform.resize(warped, shape)
+        y = torch.where(
+            torch.isclose(x, xv),
+            (sh * (x - xh)) + yh,
+            (sv * (x - xv)) + yv,
+        )
+
+        return torch.stack((x, y), dim=-1)
+
+    def _add_padding(self, corners: Tensor) -> Tensor:
+        centroid = corners.mean(0)
+        padding = self.padding.to(corners.device)
+
+        vector = corners - centroid
+
+        return (vector * (padding + 1)) + centroid
+
+    def _snap_to_edge(self, corners: Tensor, edge_map: Tensor) -> Tensor:
+        pixels = edge_map.squeeze().nonzero().to(corners.dtype)  # n x 2
+
+        vectors = corners.unsqueeze(-2) - pixels
+        distances: Tensor = torch.linalg.vector_norm(vectors, dim=-1)
+
+        return pixels[distances.argmin(dim=-1)]
+
+    def forward(self, image: Tensor) -> Tensor:
+        with self.preprocess.setup(
+            plot_path=self.plot_path / "chain" if self.plot_path is not None else None,
+            figure_size=self.figure_size,
+        ):
+            edge_map = self.preprocess(image)
+
+        angles, distances = self.peaks(edge_map)
+
+        if angles.shape[0] < 4:
+            raise RuntimeError(f"Could not find more than {angles.shape[0]} lines.")
+
+        indices = angles.argsort()
+
+        # Sort so we can split them by angle later
+        angles = angles[indices]
+        distances = distances[indices]
+
+        slopes = (angles + (torch.pi / 2)).tan()
+        x = distances * angles.cos()
+        y = distances * angles.sin()
+
+        lines = torch.stack((x, y, slopes), dim=-1)  # 4 x 3
+        verticals, horizontals = lines.split(2)
+
+        vi, hi = torch.cartesian_prod(torch.arange(2), torch.arange(2)).unbind(1)
+
+        coords = self.intersect(verticals[vi], horizontals[hi]).flip(-1)
+        corners = self._get_corners(coords, edge_map.shape)
+
+        if self.snap:
+            corners = self._snap_to_edge(corners, edge_map)
+
+        corners = corners.flip(-1)
+
+        if (self.padding != 0).any():
+            corners = self._add_padding(corners)
+
+        if self.plotting:
+            self.plot("edge_map.png", edge_map)
+
+        image_size = torch.tensor(image.shape[-2:])
+        edge_map_size = torch.tensor(edge_map.shape[-2:])
+
+        ratio = (image_size / edge_map_size).to(image.device)
+
+        corners *= ratio
+        lines[..., :2] *= ratio
+
+        if self.plotting:
+            self.plot("corners.png", image, points=corners, lines=lines)
+
+        *_, h, w = image.shape
+
+        return F.perspective(
+            image,
+            startpoints=corners.tolist(),
+            endpoints=[[0, 0], [w, 0], [w, h], [0, h]],
+        )
