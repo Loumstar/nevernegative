@@ -22,7 +22,13 @@ class Scanner(ABC):
 
         if is_raw:
             with rawpy.imread(str(source)) as raw:
-                image = raw.postprocess().copy()
+                image = raw.postprocess(
+                    # gamma=(2.2, 0.45),
+                    # no_auto_scale=False,
+                    # no_auto_bright=True,
+                    output_bps=16,
+                    # use_camera_wb=True,
+                ).copy()
         else:
             image = ski.io.imread(source)
 
