@@ -1,44 +1,62 @@
-import glob
 import logging
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Literal, Sequence
+from typing import Iterator, Literal, Sequence
 
+import torch
 import tqdm
-from torch import Tensor, device
+from torch import Tensor
 from torchvision.utils import save_image
 
-from nevernegative.layers.base import Layer
+from nevernegative.io.readers.base import Reader
+from nevernegative.io.writers.base import Writer
+from nevernegative.layers.base import DebugConfig, Layer
 from nevernegative.scanner.base import Scanner
 
 LOGGER = logging.getLogger(__name__)
 
 
 class SimpleScanner(Scanner):
-    def __init__(self, layers: Sequence[Layer], device: str | device = "cpu") -> None:
-        super().__init__(layers, device)
-
-    def array(
+    def __init__(
         self,
-        image: Tensor,
+        layers: Sequence[Layer],
         *,
-        plot_path: Path | None = None,
-        figure_size: tuple[int, int] = (15, 15),
-    ) -> Tensor:
-        for i, layer in enumerate(self.layers):
-            layer_folder = f"{i:0>2}_{layer.plotting_name}"
-            layer_plot_path = plot_path / layer_folder if plot_path is not None else None
+        reader: Reader | None = None,
+        writer: Writer | None = None,
+        device: str | torch.device = "cpu",
+    ) -> None:
+        super().__init__(layers, reader=reader, writer=writer, device=device)
 
-            with layer.setup(layer_plot_path, figure_size):
+        self._debug_config: DebugConfig | None = None
+
+    @contextmanager
+    def debug(self, plot_path: Path, figure_size: tuple[int, int] = (15, 15)) -> Iterator[None]:
+        try:
+            self._debug_config = DebugConfig(
+                plot_path=plot_path,
+                figure_size=figure_size,
+            )
+
+            yield None
+
+        finally:
+            self._debug_config = None
+
+    def _process_image(self, image: Tensor, *, image_path: Path | None = None) -> Tensor:
+        for index, layer in enumerate(self.layers):
+            with layer.setup(image_path, index, debug=self._debug_config):
                 image = layer(image)
 
         return image
+
+    def array(self, image: Tensor) -> Tensor:
+        return self._process_image(image)
 
     def file(
         self,
         source: Path,
         destination: Path,
         *,
-        is_raw: bool = False,
         plot_path: Path | Literal["image_location"] | None = None,
         figure_size: tuple[int, int] = (15, 15),
     ) -> Tensor:
@@ -62,31 +80,29 @@ class SimpleScanner(Scanner):
 
         destination.mkdir(parents=True, exist_ok=True)
 
-        output = self.array(image, plot_path=plot_path, figure_size=figure_size)
+        output = self.array(image)
         save_image(output, destination / source.with_suffix(".png").name)
 
         return output
 
     def glob(
         self,
-        source: str,
+        directory: Path,
         destination: Path,
         *,
-        is_raw: bool = False,
+        glob: str = "*",
         plot_path: Path | Literal["image_location"] | None = None,
         figure_size: tuple[int, int] = (15, 15),
     ) -> None:
-        files = glob.glob(source)
-        files.sort()
+        files = sorted(directory.glob(glob))
 
         if not files:
             raise RuntimeError("No images found.")
 
-        for file in tqdm.tqdm(files, desc="Proccesing images"):
+        for path in tqdm.tqdm(files, desc="Proccesing images"):
             self.file(
-                Path(file),
+                path,
                 destination,
-                is_raw=is_raw,
                 plot_path=plot_path,
                 figure_size=figure_size,
             )

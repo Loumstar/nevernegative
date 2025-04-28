@@ -16,16 +16,14 @@ def save_figure(
 ) -> Callable[Concatenate[LayerT, str, P], None]:
     @functools.wraps(f)
     def wrapper(self: LayerT, name: str, *args: P.args, **kwargs: P.kwargs) -> None:
-        if self.plot_path is None:
-            raise RuntimeError()
+        if self._debug_config is None:
+            return
 
         figure = f(self, *args, **kwargs)
+        figure.set_size_inches(self._debug_config.figure_size)
 
-        if self.figure_size is not None:
-            figure.set_size_inches(self.figure_size)
-
-        self.plot_path.mkdir(parents=True, exist_ok=True)
-        figure.savefig(self.plot_path / name)
+        self._debug_config.plot_path.mkdir(parents=True, exist_ok=True)
+        figure.savefig(self._debug_config.plot_path / name, format="png")
 
         plt.close()
 
