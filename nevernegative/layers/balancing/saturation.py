@@ -5,8 +5,6 @@ from nevernegative.layers.balancing.base import Balancer
 
 
 class Saturation(Balancer):
-    plotting_name = "saturation"
-
     def __init__(self, saturation: float) -> None:
         super().__init__()
 

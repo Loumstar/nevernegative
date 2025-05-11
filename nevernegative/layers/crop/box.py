@@ -16,8 +16,6 @@ from nevernegative.utils.decorators import save_figure
 
 
 class BoxCrop(Cropper):
-    plotting_name = "crop"
-
     def __init__(
         self,
         *,
@@ -81,14 +79,12 @@ class BoxCrop(Cropper):
         if self.padding:
             corners = self._add_padding(corners)
 
-        if self.plotting:
-            self.plot("threshold.png", threshold)
+        self.plot("threshold.png", threshold)
 
         ratio = torch.tensor(image.shape[-2:]) / torch.tensor(threshold.shape[-2:])
         corners *= ratio.to(image.device)
 
-        if self.plotting:
-            self.plot("corners.png", image, points=corners)
+        self.plot("corners.png", image, points=corners)
 
         *_, h, w = image.shape
 

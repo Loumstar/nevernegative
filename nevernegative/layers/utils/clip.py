@@ -4,8 +4,6 @@ from nevernegative.layers.base import Layer
 
 
 class Clip(Layer):
-    plotting_name = "clip"
-
     def __init__(self, lower: float = 0, upper: float = 1) -> None:
         super().__init__()
 

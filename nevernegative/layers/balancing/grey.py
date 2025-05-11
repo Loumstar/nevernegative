@@ -5,8 +5,6 @@ from nevernegative.layers.balancing.base import Balancer
 
 
 class Grey(Balancer):
-    plotting_name = "grey"
-
     def __init__(self, channel: int | None = 2) -> None:
         super().__init__()
         self.channel = channel

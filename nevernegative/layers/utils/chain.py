@@ -6,8 +6,6 @@ from nevernegative.layers.base import Layer
 
 
 class Chain(Layer):
-    plotting_name = "chain"
-
     def __init__(self, layers: Sequence[Layer]) -> None:
         super().__init__()
 

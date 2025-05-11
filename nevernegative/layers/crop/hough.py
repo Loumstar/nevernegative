@@ -22,8 +22,6 @@ from nevernegative.utils.decorators import save_figure
 
 
 class HoughCrop(Cropper):
-    plotting_name = "crop"
-
     default_preprocessing_layers: Sequence[Layer] = (
         Resize(height=800),
         Grey(),
@@ -195,8 +193,7 @@ class HoughCrop(Cropper):
         if (self.padding != 0).any():
             corners = self._add_padding(corners)
 
-        if self.plotting:
-            self.plot("edge_map.png", edge_map)
+        self.plot("edge_map.png", edge_map)
 
         image_size = torch.tensor(image.shape[-2:])
         edge_map_size = torch.tensor(edge_map.shape[-2:])
@@ -206,8 +203,7 @@ class HoughCrop(Cropper):
         corners *= ratio
         lines[..., :2] *= ratio
 
-        if self.plotting:
-            self.plot("corners.png", image, points=corners, lines=lines)
+        self.plot("corners.png", image, points=corners, lines=lines)
 
         *_, h, w = image.shape
 

@@ -5,8 +5,6 @@ from nevernegative.layers.balancing.base import Balancer
 
 
 class Gamma(Balancer):
-    plotting_name = "gamma"
-
     def __init__(self, gamma: float, *, channel: int | None = None) -> None:
         super().__init__()
 

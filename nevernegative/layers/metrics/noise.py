@@ -5,8 +5,6 @@ from nevernegative.layers.base import Layer
 
 
 class EstimateNoise(Layer):
-    plotting_name = "estimate_noise"
-
     def forward(self, image: Tensor) -> Tensor:
         if self._is_bw(image):
             sigma = ski.restoration.estimate_sigma(image.permute(1, 2, 0).cpu().numpy())

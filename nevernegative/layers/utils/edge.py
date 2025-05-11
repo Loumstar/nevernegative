@@ -6,8 +6,6 @@ from nevernegative.layers.base import Layer
 
 
 class EdgeDetect(Layer):
-    plotting_name = "edge_detect"
-
     def __init__(
         self,
         *,

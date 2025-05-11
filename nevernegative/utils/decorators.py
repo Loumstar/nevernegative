@@ -16,14 +16,18 @@ def save_figure(
 ) -> Callable[Concatenate[LayerT, str, P], None]:
     @functools.wraps(f)
     def wrapper(self: LayerT, name: str, *args: P.args, **kwargs: P.kwargs) -> None:
-        if self._debug_config is None:
+        config = self.get_setup_config()
+
+        if config.plotting is None:
             return
 
         figure = f(self, *args, **kwargs)
-        figure.set_size_inches(self._debug_config.figure_size)
+        figure.set_size_inches(config.plotting.figure_size)
 
-        self._debug_config.plot_path.mkdir(parents=True, exist_ok=True)
-        figure.savefig(self._debug_config.plot_path / name, format="png")
+        directory = config.plotting.plot_path / f"{config.layer_index:02}_{self.get_layer_name()}"
+        directory.mkdir(parents=True, exist_ok=True)
+
+        figure.savefig(directory / name, format="png")
 
         plt.close()
 

@@ -6,8 +6,6 @@ from nevernegative.layers.base import Layer
 
 
 class Resize(Layer):
-    plotting_name = "resize"
-
     def __init__(
         self,
         height: int | None = None,

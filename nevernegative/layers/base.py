@@ -1,9 +1,11 @@
+import re
 from abc import ABC, abstractmethod
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator, ParamSpec, TypeVar
 
 import kornia as K
+import numpy as np
 from matplotlib import pyplot as plt
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -16,19 +18,33 @@ P = ParamSpec("P")
 LayerT = TypeVar("LayerT", bound="Layer")
 
 
-class DebugConfig(BaseModel):
+class PlotConfig(BaseModel):
     plot_path: Path
     figure_size: tuple[int, int]
 
 
+class SetupConfig(BaseModel):
+    image_path: Path | None
+    layer_index: int
+
+    plotting: PlotConfig | None
+
+
 class Layer(ABC):
-    plotting_name: str
-
     def __init__(self) -> None:
-        self._debug_config: DebugConfig | None = None
+        self._setup_config: SetupConfig | None = None
 
-        self._image_path: Path | None = None
-        self._layer_index: int | None = None
+    def is_plotting(self) -> bool:
+        return self.get_setup_config().plotting is not None
+
+    def get_setup_config(self) -> SetupConfig:
+        if self._setup_config is None:
+            raise RuntimeError()
+
+        return self._setup_config
+
+    def get_layer_name(self) -> str:
+        return re.sub(r"([A-Z])", r"_\1", self.__class__.__name__).strip("_").lower()
 
     @contextmanager
     def setup(
@@ -36,24 +52,26 @@ class Layer(ABC):
         image_path: Path | None,
         layer_index: int,
         *,
-        debug: DebugConfig | None = None,
+        plotting: PlotConfig | None = None,
     ) -> Iterator[None]:
         try:
-            self._image_path = image_path
-            self._layer_index = layer_index
-            self._debug_config = debug
+            self._setup_config = SetupConfig(
+                image_path=image_path,
+                layer_index=layer_index,
+                plotting=plotting,
+            )
 
             yield
 
         finally:
-            self._debug_config = None
+            self._plot_config = None
 
     def _is_bw(self, image: Tensor) -> bool:
         return image.shape[-3] == 1
 
     def _add_image_to_axis(self, axis: Axes, image: Tensor) -> None:
         axis.imshow(
-            K.utils.tensor_to_image(image),
+            K.utils.tensor_to_image(image).astype(np.float32),
             cmap="gray" if self._is_bw(image) else None,
         )
 

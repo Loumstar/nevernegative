@@ -13,8 +13,6 @@ from nevernegative.utils.decorators import save_figure
 
 
 class ContrastStretch(Balancer):
-    plotting_name = "contrast_stretching"
-
     def __init__(
         self,
         bounds: tuple[float, float] = (0.01, 0.99),
@@ -91,7 +89,7 @@ class ContrastStretch(Balancer):
             keepdim=True,
         )
 
-        if self.plotting:
+        if self.is_plotting():
             bounds = torch.stack([lower, upper], dim=0).squeeze()
             self.plot("brightness.png", brightness, bounds=bounds.T.tolist())
 

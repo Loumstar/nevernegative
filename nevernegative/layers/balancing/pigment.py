@@ -9,7 +9,6 @@ from nevernegative.utils.brightness import compute_pixel_brightness
 
 
 class RemoveEmulsionPigment(Balancer):
-    plotting_name = "pigment"
     supported_films: dict[str, tuple[int, int, int]] = {
         "DELTA_100": (237, 236, 255),
         "CINESTILL_800T": (255, 169, 114),

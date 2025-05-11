@@ -10,8 +10,6 @@ from nevernegative.utils.decorators import save_figure
 
 
 class MatchMeans(Balancer):
-    plotting_name = "match_means"
-
     def __init__(
         self, shift_channel: int, target_channel: int, *, steps: int = 512, bins: int = 512
     ) -> None:
@@ -81,9 +79,7 @@ class MatchMeans(Balancer):
         )
 
         pivots.squeeze_()
-
-        if self.plotting:
-            self.plot("brightness.png", image, bounds=pivots.tolist())
+        self.plot("brightness.png", image, bounds=pivots.tolist())
 
         shift = pivots[self.target_channel] - pivots[self.shift_channel]
 

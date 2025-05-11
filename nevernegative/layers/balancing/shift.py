@@ -11,8 +11,6 @@ from nevernegative.utils.decorators import save_figure
 
 
 class ShiftBound(Balancer):
-    plotting_name = "match_means"
-
     def __init__(self, bound: float, value: float) -> None:
         super().__init__()
 
@@ -76,8 +74,7 @@ class ShiftBound(Balancer):
 
         pivot_value: float = pivots.squeeze().tolist()  # type: ignore
 
-        if self.plotting:
-            self.plot("brightness.png", image, bounds=[[pivot_value]])
+        self.plot("brightness", image, bounds=[[pivot_value]])
 
         shift = self.value - pivot_value
 

@@ -5,8 +5,6 @@ from nevernegative.layers.balancing.base import Balancer
 
 
 class Contrast(Balancer):
-    plotting_name = "contrast"
-
     def __init__(self, contrast: float, *, channel: int | None = None) -> None:
         super().__init__()
 

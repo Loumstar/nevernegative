@@ -5,8 +5,6 @@ from nevernegative.layers.base import Layer
 
 
 class Blur(Layer):
-    plotting_name = "blur"
-
     def __init__(
         self,
         kernel_size: tuple[int, int],

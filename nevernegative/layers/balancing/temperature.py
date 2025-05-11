@@ -126,8 +126,6 @@ KELVIN_TABLE: dict[int, tuple[int, int, int]] = {
 
 
 class Temperature(Balancer):
-    plotting_name = "temperature"
-
     def __init__(
         self,
         temperature: int = 5600,

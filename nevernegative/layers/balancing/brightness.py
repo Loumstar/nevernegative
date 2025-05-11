@@ -7,8 +7,6 @@ from nevernegative.layers.balancing.base import Balancer
 
 
 class Brightness(Balancer):
-    plotting_name = "brightness"
-
     def __init__(
         self,
         brightness: float,

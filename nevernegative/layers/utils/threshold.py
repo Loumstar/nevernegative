@@ -7,8 +7,6 @@ from nevernegative.layers.base import Layer
 
 
 class Threshold(Layer):
-    plotting_name = "threshold"
-
     def __init__(self, proportion: float = 1, fill_holes: bool = False) -> None:
         super().__init__()
 

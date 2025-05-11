@@ -5,8 +5,6 @@ from nevernegative.layers.base import Layer
 
 
 class PigmentMatch(Layer):
-    plotting_name = "color_match"
-
     def __init__(
         self,
         pigment: tuple[int, int, int],
@@ -42,8 +40,7 @@ class PigmentMatch(Layer):
 
             image[..., mask] = 0
 
-            if self.plotting:
-                self.plot("filtered.png", image)
+            self.plot("filtered.png", image)
 
         distances: Tensor = torch.linalg.vector_norm(
             image - self.adjusted_pigment(self.stops).to(image.device),

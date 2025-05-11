@@ -197,4 +197,4 @@ class RawPyReader(Reader):
                 chromatic_aberration=self.chromatic_aberration,
             )
 
-        return K.utils.image_to_tensor(image).to(device, torch.float16) / 255
+        return K.utils.image_to_tensor(image).to(device, torch.float16) / (2**self.bits_per_channel)
